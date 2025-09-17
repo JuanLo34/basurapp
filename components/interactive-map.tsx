@@ -207,6 +207,7 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
               <Truck
                 className={`w-5 h-5 sm:w-6 sm:h-6 -scale-x-100 ${currentRoute.action === "destination" ? "text-blue-600" : "text-green-600"}`}
             />
+            </div>
             <div
               className={`absolute -top-1 sm:-top-2 -right-0.5 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse border border-white sm:border-2 ${
                 currentRoute.action === "destination"
