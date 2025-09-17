@@ -5,6 +5,7 @@ interface StorageData {
   agendaItems: any[]
   userEmail: string
   userName: string
+  notificationsList: any[]
 }
 
 const STORAGE_KEY = "basurapp_data"
@@ -96,5 +97,14 @@ export const storage = {
   getUserName: (): string => {
     const data = storage.getData()
     return data.userName || ""
+  },
+
+  saveNotifications: (notifications: any[]) => {
+    storage.setData({ notificationsList: notifications })
+  },
+
+  getNotifications: (): any[] => {
+    const data = storage.getData()
+    return data.notificationsList || []
   },
 }

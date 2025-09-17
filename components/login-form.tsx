@@ -41,34 +41,33 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated background elements */}
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 animate-float">
-          <Leaf className="w-8 h-8 text-accent/30" />
+        <div className="absolute top-10 sm:top-20 left-5 sm:left-10 animate-float">
+          <Leaf className="w-6 h-6 sm:w-8 sm:h-8 text-accent/30" />
         </div>
-        <div className="absolute top-40 right-20 animate-float" style={{ animationDelay: "1s" }}>
-          <Recycle className="w-12 h-12 text-secondary/40" />
+        <div className="absolute top-20 sm:top-40 right-10 sm:right-20 animate-float" style={{ animationDelay: "1s" }}>
+          <Recycle className="w-8 h-8 sm:w-12 sm:h-12 text-secondary/40" />
         </div>
-        <div className="absolute bottom-32 left-1/4 animate-float" style={{ animationDelay: "2s" }}>
-          <Trash2 className="w-10 h-10 text-primary/30" />
+        <div className="absolute bottom-20 sm:bottom-32 left-1/4 animate-float" style={{ animationDelay: "2s" }}>
+          <Trash2 className="w-6 h-6 sm:w-10 sm:h-10 text-primary/30" />
         </div>
       </div>
 
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-card/95 backdrop-blur-sm">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-20 h-20 bg-primary rounded-2xl flex items-center justify-center animate-pulse-green">
-            <Trash2 className="w-10 h-10 text-primary-foreground" />
+      <Card className="w-full max-w-sm sm:max-w-md shadow-2xl border-0 bg-card/95 backdrop-blur-sm">
+        <CardHeader className="text-center space-y-3 sm:space-y-4 px-4 sm:px-6 py-4 sm:py-6">
+          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center animate-pulse-green">
+            <Trash2 className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               BASURAPP
             </CardTitle>
-            <CardDescription className="text-lg mt-2">Gestión inteligente de residuos</CardDescription>
+            <CardDescription className="text-base sm:text-lg mt-2">Gestión inteligente de residuos</CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
           {!showForgotPassword ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -82,7 +81,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-12 border-2 focus:border-accent transition-colors"
+                  className="h-11 sm:h-12 border-2 focus:border-accent transition-colors text-base"
                 />
               </div>
 
@@ -97,18 +96,18 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-12 border-2 focus:border-accent transition-colors"
+                  className="h-11 sm:h-12 border-2 focus:border-accent transition-colors text-base"
                 />
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 transform hover:scale-105"
+                className="w-full h-11 sm:h-12 text-base sm:text-lg font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 transform hover:scale-105"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                     <span>Iniciando sesión...</span>
                   </div>
                 ) : (
@@ -145,13 +144,13 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                   type="email"
                   placeholder="tu@email.com"
                   required
-                  className="h-12 border-2 focus:border-accent transition-colors"
+                  className="h-11 sm:h-12 border-2 focus:border-accent transition-colors text-base"
                 />
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-12 text-lg font-semibold bg-accent hover:bg-accent/90 transition-all duration-300"
+                className="w-full h-11 sm:h-12 text-base sm:text-lg font-semibold bg-accent hover:bg-accent/90 transition-all duration-300"
               >
                 Enviar Enlace
               </Button>

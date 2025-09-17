@@ -63,14 +63,30 @@ export function NotificationCenter({ onTaskNotification }: NotificationCenterPro
   ])
 
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [sentTaskNotifications, setSentTaskNotifications] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const savedNotifications = storage.getNotifications()
+    if (savedNotifications && savedNotifications.length > 0) {
+      setNotifications((prev) => [...savedNotifications, ...prev])
+    }
+  }, [])
 
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date()
       setCurrentTime(now)
 
-      checkTaskNotifications(now)
+      const savedNotifications = storage.getNotifications()
+      if (savedNotifications && savedNotifications.length > 0) {
+        setNotifications((prev) => {
+          const existingIds = new Set(prev.map((n) => n.id))
+          const newNotifications = savedNotifications.filter((n) => !existingIds.has(n.id))
+          if (newNotifications.length > 0) {
+            return [...newNotifications, ...prev.slice(0, 4)]
+          }
+          return prev
+        })
+      }
 
       // Simulación de nuevas notificaciones (menos frecuente)
       if (Math.random() > 0.98) {
@@ -86,55 +102,18 @@ export function NotificationCenter({ onTaskNotification }: NotificationCenterPro
 
         setNotifications((prev) => [newNotification, ...prev.slice(0, 4)])
       }
-    }, 1000) // Actualizar cada segundo para precisión
+    }, 1000)
 
     return () => clearInterval(timer)
   }, [])
 
-  const checkTaskNotifications = (now: Date) => {
-    const currentTimeString = now.toTimeString().slice(0, 5) // HH:MM format
-    const currentDateString = now.toISOString().split("T")[0]
-
-    const agendaItems = storage.getAgendaItems()
-    const notificationsEnabled = storage.getNotificationSettings()
-
-    if (!notificationsEnabled) return
-
-    agendaItems.forEach((item) => {
-      // Verificar si la tarea es para hoy y la hora coincide o es menor a la hora actual
-      if (item.date === currentDateString && !item.completed && item.time) {
-        const taskTime = item.time
-        const currentTime = currentTimeString
-
-        const taskNotificationId = `${item.id}-${item.date}-${item.time}`
-
-        // Comparar si la hora de la tarea es menor o igual a la hora actual
-        if (taskTime <= currentTime && !sentTaskNotifications.has(taskNotificationId)) {
-          const taskNotification: Notification = {
-            id: `task-${item.id}-${Date.now()}`,
-            type: "task_reminder",
-            message: `⏰ Es hora de: ${item.title}`,
-            time: "Ahora",
-            isNew: true,
-            priority: item.priority,
-            location: item.description || undefined,
-          }
-
-          setNotifications((prev) => [taskNotification, ...prev.slice(0, 4)])
-
-          setSentTaskNotifications((prev) => new Set([...prev, taskNotificationId]))
-
-          // Callback opcional para manejar la notificación
-          if (onTaskNotification) {
-            onTaskNotification(item.id, item.title)
-          }
-        }
-      }
-    })
-  }
-
   const removeNotification = (id: string) => {
     setNotifications(notifications.filter((n) => n.id !== id))
+    if (id.startsWith("task-")) {
+      const savedNotifications = storage.getNotifications() || []
+      const updatedNotifications = savedNotifications.filter((n) => n.id !== id)
+      storage.saveNotifications(updatedNotifications)
+    }
   }
 
   const markAsRead = (id: string) => {
@@ -186,10 +165,10 @@ export function NotificationCenter({ onTaskNotification }: NotificationCenterPro
   const newNotificationsCount = notifications.filter((n) => n.isNew).length
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <h3 className="font-medium">Centro de Alertas</h3>
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-medium text-sm sm:text-base">Centro de Alertas</h3>
           {newNotificationsCount > 0 && (
             <Badge variant="destructive" className="text-xs px-2 py-0.5 animate-pulse">
               {newNotificationsCount} nuevas
@@ -212,7 +191,8 @@ export function NotificationCenter({ onTaskNotification }: NotificationCenterPro
         </div>
       </div>
 
-      <div className="space-y-3 max-h-80 overflow-y-auto">
+      {/* Lista de notificaciones optimizada para móviles */}
+      <div className="space-y-2 sm:space-y-3 max-h-80 overflow-y-auto">
         {notifications.length === 0 ? (
           <Card className="p-4 text-center">
             <p className="text-sm text-muted-foreground">No hay notificaciones nuevas</p>
@@ -221,7 +201,7 @@ export function NotificationCenter({ onTaskNotification }: NotificationCenterPro
           notifications.map((notification) => (
             <Card
               key={notification.id}
-              className={`p-4 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-0.5 ${getNotificationColor(
+              className={`p-3 sm:p-4 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-0.5 ${getNotificationColor(
                 notification.type,
                 notification.priority,
               )} ${notification.isNew ? "animate-slide-in" : ""}`}
@@ -233,34 +213,34 @@ export function NotificationCenter({ onTaskNotification }: NotificationCenterPro
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-relaxed">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-relaxed break-words pr-2">
                       {notification.message}
                     </p>
                     {notification.priority === "high" && (
-                      <Badge variant="destructive" className="text-xs ml-2 animate-pulse">
+                      <Badge variant="destructive" className="text-xs ml-2 animate-pulse flex-shrink-0">
                         Urgente
                       </Badge>
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-2 space-y-1 sm:space-y-0">
                     <p className="text-xs text-muted-foreground">{notification.time}</p>
                     {notification.estimatedTime && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs w-fit">
                         ETA: {notification.estimatedTime}
                       </Badge>
                     )}
                   </div>
 
                   {notification.location && (
-                    <div className="flex items-center space-x-1 mt-1">
-                      <MapPin className="w-3 h-3 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">{notification.location}</p>
+                    <div className="flex items-start space-x-1 mt-1">
+                      <MapPin className="w-3 h-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-muted-foreground break-words">{notification.location}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center space-x-1">
+                <div className="flex flex-col sm:flex-row items-center space-y-1 sm:space-y-0 sm:space-x-1 flex-shrink-0">
                   {notification.isNew && (
                     <Button
                       variant="ghost"
@@ -286,8 +266,9 @@ export function NotificationCenter({ onTaskNotification }: NotificationCenterPro
         )}
       </div>
 
+      {/* Estado del servicio optimizado para móviles */}
       <div className="pt-3 border-t border-border/50">
-        <div className="grid grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Estado del servicio:</span>
             <div className="flex items-center space-x-1">

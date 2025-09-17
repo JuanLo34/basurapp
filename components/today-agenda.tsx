@@ -46,6 +46,7 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<AgendaItem | null>(null)
   const [showNotificationAlert, setShowNotificationAlert] = useState(false)
+  const [sentTaskNotifications, setSentTaskNotifications] = useState<Set<string>>(new Set())
 
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([
     {
@@ -87,6 +88,63 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
   useEffect(() => {
     storage.saveNotificationSettings(notificationsEnabled)
   }, [notificationsEnabled])
+
+  useEffect(() => {
+    if (!notificationsEnabled) return
+
+    const checkTaskNotifications = () => {
+      const now = new Date()
+      const currentTimeString = now.toTimeString().slice(0, 5) // HH:MM format
+      const currentDateString = now.toISOString().split("T")[0]
+
+      agendaItems.forEach((item) => {
+        if (item.date === currentDateString && !item.completed && item.time) {
+          const taskNotificationId = `${item.id}-${item.date}-${item.time}`
+
+          // Solo enviar si la hora de la tarea es menor o igual a la actual y no se ha enviado antes
+          if (item.time <= currentTimeString && !sentTaskNotifications.has(taskNotificationId)) {
+            // Agregar la notificación al centro de alertas
+            const existingNotifications = storage.getNotifications() || []
+            const taskNotification = {
+              id: `task-${item.id}-${Date.now()}`,
+              type: "task_reminder" as const,
+              message: `⏰ Es hora de: ${item.title}`,
+              time: "Ahora",
+              isNew: true,
+              priority: item.priority,
+              location: item.description || undefined,
+            }
+
+            storage.saveNotifications([taskNotification, ...existingNotifications.slice(0, 4)])
+
+            // Marcar como enviada para evitar duplicados
+            setSentTaskNotifications((prev) => new Set([...prev, taskNotificationId]))
+          }
+        }
+      })
+    }
+
+    // Verificar cada minuto
+    const interval = setInterval(checkTaskNotifications, 60000)
+    // Verificar inmediatamente
+    checkTaskNotifications()
+
+    return () => clearInterval(interval)
+  }, [notificationsEnabled, agendaItems, sentTaskNotifications])
+
+  useEffect(() => {
+    const completedTasks = agendaItems.filter((item) => item.completed)
+    if (completedTasks.length > 0) {
+      setSentTaskNotifications((prev) => {
+        const newSet = new Set(prev)
+        completedTasks.forEach((task) => {
+          const taskNotificationId = `${task.id}-${task.date}-${task.time}`
+          newSet.delete(taskNotificationId)
+        })
+        return newSet
+      })
+    }
+  }, [agendaItems])
 
   const [newItem, setNewItem] = useState({
     title: "",
@@ -191,47 +249,48 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Today's Date */}
-      <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
+    <div className="space-y-3 sm:space-y-4">
+      {/* Today's Date - Optimizado para móviles */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-primary/5 rounded-lg border border-primary/20 space-y-3 sm:space-y-0">
         <div className="flex items-center space-x-2">
-          <Calendar className="w-5 h-5 text-primary" />
-          <div>
-            <p className="font-medium text-primary">Agenda de Hoy</p>
-            <p className="text-sm text-muted-foreground">{formatDate(today)}</p>
+          <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="font-medium text-primary text-sm sm:text-base">Agenda de Hoy</p>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{formatDate(today)}</p>
           </div>
         </div>
 
-        {/* Two buttons separated with distinct functionalities */}
-        <div className="flex items-center space-x-2">
-          {/* Button to open calendar */}
+        {/* Botones adaptados para móviles */}
+        <div className="flex items-center space-x-2 w-full sm:w-auto">
           <Button
             size="sm"
             variant="outline"
             onClick={onOpenCalendar}
-            className="bg-white hover:bg-green-50 border-primary/30 transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 hover:border-green-300"
+            className="flex-1 sm:flex-none bg-white hover:bg-green-50 border-primary/30 transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 hover:border-green-300 h-9 text-xs sm:text-sm"
           >
             <CalendarDays className="w-4 h-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
             Calendario
           </Button>
 
-          {/* Button to add task */}
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
               <Button
                 size="sm"
-                className="bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95"
+                className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 h-9 text-xs sm:text-sm"
               >
                 <Plus className="w-4 h-4 mr-1 transition-transform duration-200 group-hover:rotate-90" />
                 Agregar
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-semibold text-center">Agregar Nueva Tarea</DialogTitle>
-                <p className="text-sm text-muted-foreground text-center">Organiza tu día con tareas personalizadas</p>
+            {/* Modal completamente optimizado para móviles */}
+            <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="space-y-2">
+                <DialogTitle className="text-lg sm:text-xl font-semibold text-center">Agregar Nueva Tarea</DialogTitle>
+                <p className="text-xs sm:text-sm text-muted-foreground text-center">
+                  Organiza tu día con tareas personalizadas
+                </p>
               </DialogHeader>
-              <div className="space-y-6 py-4">
+              <div className="space-y-4 sm:space-y-6 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="title" className="text-sm font-medium">
                     Título de la tarea *
@@ -241,7 +300,7 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                     value={newItem.title}
                     onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
                     placeholder="Ej: Sacar la basura, Limpiar patio..."
-                    className="h-11"
+                    className="h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
 
@@ -255,11 +314,11 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                     onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                     placeholder="Agrega detalles adicionales sobre la tarea..."
                     rows={3}
-                    className="resize-none"
+                    className="resize-none text-sm sm:text-base"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="time" className="text-sm font-medium">
                       Hora programada
@@ -269,7 +328,7 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                       type="time"
                       value={newItem.time}
                       onChange={(e) => setNewItem({ ...newItem, time: e.target.value })}
-                      className="h-11"
+                      className="h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2">
@@ -280,7 +339,7 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                       value={newItem.type}
                       onValueChange={(value: any) => setNewItem({ ...newItem, type: value })}
                     >
-                      <SelectTrigger className="h-11">
+                      <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -321,7 +380,7 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                     value={newItem.priority}
                     onValueChange={(value: any) => setNewItem({ ...newItem, priority: value })}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -347,10 +406,10 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                   </Select>
                 </div>
 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
                   <Button
                     onClick={addItem}
-                    className="flex-1 h-11 bg-primary hover:bg-primary/90 transition-all duration-200"
+                    className="flex-1 h-10 sm:h-11 bg-primary hover:bg-primary/90 transition-all duration-200 text-sm sm:text-base"
                     disabled={!newItem.title.trim()}
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -359,7 +418,7 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                   <Button
                     variant="outline"
                     onClick={() => setIsAddModalOpen(false)}
-                    className="h-11 px-6 hover:bg-muted/50 transition-all duration-200"
+                    className="h-10 sm:h-11 px-6 hover:bg-muted/50 transition-all duration-200 text-sm sm:text-base"
                   >
                     Cancelar
                   </Button>
@@ -370,30 +429,31 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
         </div>
       </div>
 
-      {/* Address Display */}
+      {/* Address Display - Optimizado para móviles */}
       {userAddress && (
         <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
           <div className="flex items-start space-x-2">
             <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Dirección registrada</p>
-              <p className="text-xs text-muted-foreground">{userAddress}</p>
+              <p className="text-xs text-muted-foreground break-words">{userAddress}</p>
             </div>
           </div>
         </div>
       )}
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-accent rounded-full"></div>
-            <h3 className="font-medium">Tareas del Día ({todayItems.length})</h3>
+            <h3 className="font-medium text-sm sm:text-base">Tareas del Día ({todayItems.length})</h3>
           </div>
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs w-fit">
             {todayItems.filter((item) => item.completed).length} completadas
           </Badge>
         </div>
 
+        {/* Lista de tareas optimizada para móviles */}
         <div className="space-y-2">
           {todayItems.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground">
@@ -405,15 +465,15 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
             todayItems.map((item) => (
               <div
                 key={item.id}
-                className={`p-4 rounded-lg border-l-4 transition-all duration-200 ${getPriorityColor(item.priority)} ${
+                className={`p-3 sm:p-4 rounded-lg border-l-4 transition-all duration-200 ${getPriorityColor(item.priority)} ${
                   item.completed ? "opacity-60" : ""
                 }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
+                  <div className="flex items-start space-x-3 flex-1 min-w-0">
                     <button
                       onClick={() => toggleComplete(item.id)}
-                      className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                         item.completed
                           ? "bg-green-500 border-green-500 text-white"
                           : "border-muted-foreground hover:border-green-500"
@@ -422,11 +482,13 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                       {item.completed && <CheckCircle className="w-3 h-3" />}
                     </button>
 
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <div className={`w-3 h-3 rounded-full ${getTypeColor(item.type)}`}></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <div className={`w-3 h-3 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}></div>
                         {getTypeIcon(item.type)}
-                        <h4 className={`font-medium text-sm ${item.completed ? "line-through" : ""}`}>{item.title}</h4>
+                        <h4 className={`font-medium text-sm ${item.completed ? "line-through" : ""} break-words`}>
+                          {item.title}
+                        </h4>
                         {item.time && (
                           <Badge variant="outline" className="text-xs">
                             {item.time}
@@ -435,14 +497,16 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                       </div>
 
                       {item.description && (
-                        <p className={`text-xs text-muted-foreground ${item.completed ? "line-through" : ""}`}>
+                        <p
+                          className={`text-xs text-muted-foreground ${item.completed ? "line-through" : ""} break-words`}
+                        >
                           {item.description}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-1 ml-2">
+                  <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
                     <Button size="sm" variant="ghost" onClick={() => setEditingItem(item)} className="h-8 w-8 p-0">
                       <Edit className="w-3 h-3" />
                     </Button>
@@ -462,87 +526,104 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
         </div>
       </div>
 
-      {/* Notification Toggle */}
-      <div className="p-4 bg-accent/5 rounded-lg border border-accent/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+      {/* Notification Toggle - Optimizado para móviles */}
+      <div className="p-3 sm:p-4 bg-accent/5 rounded-lg border border-accent/20">
+        <div className="flex items-start sm:items-center justify-between space-x-3">
+          <div className="flex items-start space-x-3 flex-1 min-w-0">
             {notificationsEnabled ? (
-              <Bell className="w-5 h-5 text-accent" />
+              <Bell className="w-5 h-5 text-accent flex-shrink-0 mt-0.5 sm:mt-0" />
             ) : (
-              <BellOff className="w-5 h-5 text-muted-foreground" />
+              <BellOff className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
             )}
-            <div>
-              <Label htmlFor="notifications" className="text-sm font-medium cursor-pointer">
+            <div className="min-w-0 flex-1">
+              <Label htmlFor="notifications" className="text-sm font-medium cursor-pointer block">
                 Activar notificaciones
               </Label>
-              <p className="text-xs text-muted-foreground">Recibe alertas de tus tareas programadas</p>
+              <p className="text-xs text-muted-foreground break-words">Recibe alertas de tus tareas programadas</p>
             </div>
           </div>
-          <Switch id="notifications" checked={notificationsEnabled} onCheckedChange={handleNotificationToggle} />
+          <Switch
+            id="notifications"
+            checked={notificationsEnabled}
+            onCheckedChange={handleNotificationToggle}
+            className="flex-shrink-0"
+          />
         </div>
       </div>
 
+      {/* Alerta de notificaciones - Optimizada para móviles */}
       {showNotificationAlert && (
-        <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800 animate-in slide-in-from-top-2 duration-300 shadow-lg">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
+        <div className="p-3 sm:p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800 animate-in slide-in-from-top-2 duration-300 shadow-lg">
+          <div className="flex items-start sm:items-center space-x-3">
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center animate-pulse flex-shrink-0">
               <Bell className="w-4 h-4 text-white" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-green-800 dark:text-green-200">¡Notificaciones Activadas!</p>
-              <p className="text-xs text-green-700 dark:text-green-300">
+              <p className="text-xs text-green-700 dark:text-green-300 break-words">
                 Te enviaremos alertas sobre tus tareas y recolecciones programadas
               </p>
             </div>
-            <div className="ml-auto">
+            <div className="flex-shrink-0">
               <CheckCircle className="w-5 h-5 text-green-600 animate-bounce" />
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Modal - Completamente optimizado para móviles */}
       {editingItem && (
         <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Editar Tarea</DialogTitle>
+              <DialogTitle className="text-lg font-semibold">Editar Tarea</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="edit-title">Título</Label>
+                <Label htmlFor="edit-title" className="text-sm font-medium">
+                  Título
+                </Label>
                 <Input
                   id="edit-title"
                   value={editingItem.title}
                   onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
+                  className="h-10 text-sm"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-description">Descripción</Label>
+                <Label htmlFor="edit-description" className="text-sm font-medium">
+                  Descripción
+                </Label>
                 <Textarea
                   id="edit-description"
                   value={editingItem.description}
                   onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
                   rows={3}
+                  className="text-sm resize-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-time">Hora</Label>
+                  <Label htmlFor="edit-time" className="text-sm font-medium">
+                    Hora
+                  </Label>
                   <Input
                     id="edit-time"
                     type="time"
                     value={editingItem.time}
                     onChange={(e) => setEditingItem({ ...editingItem, time: e.target.value })}
+                    className="h-10 text-sm"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit-priority">Prioridad</Label>
+                  <Label htmlFor="edit-priority" className="text-sm font-medium">
+                    Prioridad
+                  </Label>
                   <Select
                     value={editingItem.priority}
                     onValueChange={(value: any) => setEditingItem({ ...editingItem, priority: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-10 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -553,17 +634,17 @@ export function TodayAgenda({ userAddress, onOpenCalendar }: TodayAgendaProps) {
                   </Select>
                 </div>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                 <Button
                   onClick={() => {
                     updateItem(editingItem.id, editingItem)
                     setEditingItem(null)
                   }}
-                  className="flex-1"
+                  className="flex-1 h-10 text-sm"
                 >
                   Guardar Cambios
                 </Button>
-                <Button variant="outline" onClick={() => setEditingItem(null)}>
+                <Button variant="outline" onClick={() => setEditingItem(null)} className="h-10 text-sm">
                   Cancelar
                 </Button>
               </div>
