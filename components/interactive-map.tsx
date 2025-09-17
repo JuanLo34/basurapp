@@ -227,7 +227,7 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
             )}
 
             <div className="absolute -top-8 sm:-top-12 -left-6 sm:-left-8 text-xs bg-gray-800 text-white px-1 sm:px-2 py-0.5 sm:py-1 rounded shadow-lg opacity-90 transition-opacity max-w-24 sm:max-w-none">
-              <div className="hidden sm:block">Camión #247 - {truckStatus}</div>
+              <div className="hidden sm:block text-xs">Camión #247 - {truckStatus}</div>
               <div className="sm:hidden">{truckStatus}</div>
               <div className="w-2 h-2 bg-gray-800 rotate-45 absolute -bottom-1 left-1/2 transform -translate-x-1/2"></div>
             </div>
@@ -237,24 +237,7 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
 
       {/* Controles */}
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex flex-col space-y-1 sm:space-y-2 z-30">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border overflow-hidden">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 sm:h-8 sm:w-8 p-0 rounded-none border-b"
-            onClick={() => setZoomLevel(Math.min(zoomLevel + 0.2, 2))}
-          >
-            <ZoomIn className="w-3 h-3 sm:w-4 sm:h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 sm:h-8 sm:w-8 p-0 rounded-none"
-            onClick={() => setZoomLevel(Math.max(zoomLevel - 0.2, 0.5))}
-          >
-            <ZoomOut className="w-3 h-3 sm:w-4 sm:h-4" />
-          </Button>
-        </div>
+        
 
         <Button
           variant="ghost"
