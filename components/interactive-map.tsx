@@ -228,7 +228,6 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
 
             <div className="absolute -top-8 sm:-top-12 -left-6 sm:-left-8 text-xs bg-gray-800 text-white px-1 sm:px-2 py-0.5 sm:py-1 rounded shadow-lg opacity-90 transition-opacity max-w-24 sm:max-w-none">
 
-              <div className="sm:hidden">♻️♻️♻️</div>
               <div className="w-2 h-2 bg-gray-800 rotate-45 absolute -bottom-1 left-1/2 transform -translate-x-1/2"></div>
             </div>
           </div>
