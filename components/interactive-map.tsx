@@ -4,22 +4,22 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Truck, Navigation, Layers, ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
+import { Truck, Navigation, Layers, RotateCcw } from "lucide-react"
 
 interface InteractiveMapProps {
   userAddress: string
 }
 
 const truckRoutes = [
-  { x: 5, y: 20, action: "pickup", duration: 2000 },
-  { x: 15, y: 35, action: "moving", duration: 1500 },
-  { x: 25, y: 15, action: "pickup", duration: 2000 },
-  { x: 40, y: 45, action: "moving", duration: 1800 },
-  { x: 55, y: 25, action: "pickup", duration: 2000 },
-  { x: 70, y: 60, action: "moving", duration: 1600 },
-  { x: 85, y: 50, action: "destination", duration: 3000 }, // Tu ubicación
-  { x: 90, y: 45, action: "leaving", duration: 1000 },
-  { x: 95, y: 40, action: "gone", duration: 500 },
+  { x: 5, y: 20, action: "pickup", duration: 3000 },
+  { x: 15, y: 35, action: "moving", duration: 2500 },
+  { x: 25, y: 15, action: "pickup", duration: 3000 },
+  { x: 40, y: 45, action: "moving", duration: 2800 },
+  { x: 55, y: 25, action: "pickup", duration: 2500 },
+  { x: 70, y: 60, action: "moving", duration: 3000 },
+  { x: 85, y: 50, action: "destination", duration: 3500 }, // Tu ubicación
+  { x: 90, y: 45, action: "leaving", duration: 2000 },
+  { x: 95, y: 40, action: "gone", duration: 2500 },
 ]
 
 export function InteractiveMap({ userAddress }: InteractiveMapProps) {
@@ -205,9 +205,8 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
               className={`bg-white dark:bg-gray-800 rounded-lg p-0.5 sm:p-1 shadow-lg border ${currentRoute.action === "pickup" ? "animate-bounce" : ""}`}
             >
               <Truck
-                className={`w-5 h-5 sm:w-6 sm:h-6 ${currentRoute.action === "destination" ? "text-blue-600" : "text-green-600"}`}
-              />
-            </div>
+                className={`w-5 h-5 sm:w-6 sm:h-6 -scale-x-100 ${currentRoute.action === "destination" ? "text-blue-600" : "text-green-600"}`}
+            />
             <div
               className={`absolute -top-1 sm:-top-2 -right-0.5 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse border border-white sm:border-2 ${
                 currentRoute.action === "destination"
