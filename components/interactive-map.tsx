@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Truck, Navigation, Layers, RotateCcw } from "lucide-react"
+import { Truck, Navigation, Layers, ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
 
 interface InteractiveMapProps {
   userAddress: string
