@@ -11,15 +11,15 @@ interface InteractiveMapProps {
 }
 
 const truckRoutes = [
-  { x: 5, y: 20, action: "pickup", duration: 3000 },
-  { x: 15, y: 35, action: "moving", duration: 2500 },
-  { x: 25, y: 15, action: "pickup", duration: 3000 },
-  { x: 40, y: 45, action: "moving", duration: 2800 },
-  { x: 55, y: 25, action: "pickup", duration: 2500 },
-  { x: 70, y: 60, action: "moving", duration: 3000 },
-  { x: 85, y: 50, action: "destination", duration: 3500 }, // Tu ubicación
-  { x: 90, y: 45, action: "leaving", duration: 2000 },
-  { x: 95, y: 40, action: "gone", duration: 2500 },
+  { x: 5, y: 20, action: "pickup", duration: 8000 },
+  { x: 15, y: 35, action: "moving", duration: 7500 },
+  { x: 25, y: 15, action: "pickup", duration: 8000 },
+  { x: 40, y: 45, action: "moving", duration: 7800 },
+  { x: 55, y: 25, action: "pickup", duration: 7500 },
+  { x: 70, y: 60, action: "moving", duration: 8000 },
+  { x: 85, y: 50, action: "destination", duration: 8500 }, // Tu ubicación
+  { x: 90, y: 45, action: "leaving", duration: 7000 },
+  { x: 95, y: 40, action: "gone", duration: 7500 },
 ]
 
 export function InteractiveMap({ userAddress }: InteractiveMapProps) {
@@ -201,9 +201,6 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
           }}
         >
           <div className="relative">
-            <div
-              className={`bg-white dark:bg-gray-800 rounded-lg p-0.5 sm:p-1 shadow-lg border ${currentRoute.action === "pickup" ? "animate-bounce" : ""}`}
-            >
               <Truck
                 className={`w-5 h-5 sm:w-6 sm:h-6 -scale-x-100 ${currentRoute.action === "destination" ? "text-blue-600" : "text-green-600"}`}
             />
