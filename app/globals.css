@@ -1,0 +1,298 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Updated color scheme for BASURAPP with dark green and white theme */
+  --background: oklch(1 0 0); /* Pure white background */
+  --foreground: oklch(0.2 0.02 150); /* Dark green text */
+  --card: oklch(0.98 0 0); /* Light card background */
+  --card-foreground: oklch(0.2 0.02 150); /* Dark green card text */
+  --popover: oklch(1 0 0); /* White popover */
+  --popover-foreground: oklch(0.2 0.02 150); /* Dark green popover text */
+  --primary: oklch(0.25 0.08 150); /* Dark green primary */
+  --primary-foreground: oklch(1 0 0); /* White text on primary */
+  --secondary: oklch(0.35 0.12 150); /* Medium green secondary */
+  --secondary-foreground: oklch(1 0 0); /* White text on secondary */
+  --muted: oklch(0.95 0 0); /* Light muted background */
+  --muted-foreground: oklch(0.5 0.02 150); /* Muted green text */
+  --accent: oklch(0.4 0.15 150); /* Bright green accent */
+  --accent-foreground: oklch(1 0 0); /* White text on accent */
+  --destructive: oklch(0.577 0.245 27.325); /* Red for destructive actions */
+  --destructive-foreground: oklch(1 0 0); /* White text on destructive */
+  --border: oklch(0.9 0 0); /* Light border */
+  --input: oklch(1 0 0); /* White input background */
+  --ring: oklch(0.4 0.15 150 / 0.3); /* Green focus ring */
+  --chart-1: oklch(0.4 0.15 150); /* Green chart color */
+  --chart-2: oklch(0.25 0.08 150); /* Dark green chart color */
+  --chart-3: oklch(0.6 0.2 150); /* Light green chart color */
+  --chart-4: oklch(0.35 0.12 150); /* Medium green chart color */
+  --chart-5: oklch(0.5 0.18 150); /* Another green variant */
+  --radius: 0.75rem; /* Rounded corners for modern look */
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.2 0.02 150);
+  --sidebar-primary: oklch(0.25 0.08 150);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0 0);
+  --sidebar-accent-foreground: oklch(0.2 0.02 150);
+  --sidebar-border: oklch(0.9 0 0);
+  --sidebar-ring: oklch(0.4 0.15 150 / 0.3);
+}
+
+.dark {
+  --background: oklch(0.15 0.02 150); /* Dark green background */
+  --foreground: oklch(1 0 0); /* White text */
+  --card: oklch(0.18 0.02 150); /* Slightly lighter dark green */
+  --card-foreground: oklch(1 0 0); /* White card text */
+  --popover: oklch(0.15 0.02 150); /* Dark green popover */
+  --popover-foreground: oklch(1 0 0); /* White popover text */
+  --primary: oklch(0.4 0.15 150); /* Bright green primary */
+  --primary-foreground: oklch(0.15 0.02 150); /* Dark green text on primary */
+  --secondary: oklch(0.25 0.08 150); /* Dark green secondary */
+  --secondary-foreground: oklch(1 0 0); /* White text on secondary */
+  --muted: oklch(0.2 0.02 150); /* Dark muted background */
+  --muted-foreground: oklch(0.7 0.02 150); /* Light green muted text */
+  --accent: oklch(0.5 0.18 150); /* Bright accent green */
+  --accent-foreground: oklch(0.15 0.02 150); /* Dark text on accent */
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.25 0.02 150); /* Dark green border */
+  --input: oklch(0.2 0.02 150); /* Dark input background */
+  --ring: oklch(0.5 0.18 150 / 0.3); /* Bright green focus ring */
+  --chart-1: oklch(0.5 0.18 150);
+  --chart-2: oklch(0.4 0.15 150);
+  --chart-3: oklch(0.6 0.2 150);
+  --chart-4: oklch(0.35 0.12 150);
+  --chart-5: oklch(0.45 0.16 150);
+  --sidebar: oklch(0.18 0.02 150);
+  --sidebar-foreground: oklch(1 0 0);
+  --sidebar-primary: oklch(0.5 0.18 150);
+  --sidebar-primary-foreground: oklch(0.15 0.02 150);
+  --sidebar-accent: oklch(0.25 0.02 150);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.25 0.02 150);
+  --sidebar-ring: oklch(0.5 0.18 150 / 0.3);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Added custom animations for BASURAPP */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+  }
+}
+
+@keyframes truck-move {
+  0% {
+    transform: translateX(-100px) translateY(0px);
+  }
+  25% {
+    transform: translateX(50px) translateY(-20px);
+  }
+  50% {
+    transform: translateX(150px) translateY(10px);
+  }
+  75% {
+    transform: translateX(250px) translateY(-15px);
+  }
+  100% {
+    transform: translateX(350px) translateY(0px);
+  }
+}
+
+@keyframes slide-in {
+  0% {
+    transform: translateX(-100%) scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.8), 0 0 30px rgba(74, 222, 128, 0.6);
+  }
+}
+
+@keyframes bounce-gentle {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes truck-realistic {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(25%) translateY(-2px) rotate(1deg);
+  }
+  50% {
+    transform: translateX(50%) translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateX(75%) translateY(-1px) rotate(-1deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(0) rotate(0deg);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-green {
+  animation: pulse-green 2s infinite;
+}
+
+.animate-truck-move {
+  animation: truck-move 8s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.5s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1s;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+/* Enhanced hover effects for cards */
+.card-hover-effect {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Truck animation improvements */
+.animate-truck-realistic {
+  animation: truck-realistic 3s ease-in-out;
+}
+
+/* Calendar glow effect for collection days */
+.calendar-glow {
+  position: relative;
+}
+
+.calendar-glow::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(45deg, transparent, rgba(74, 222, 128, 0.5), transparent);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: glow 2s ease-in-out infinite;
+}
