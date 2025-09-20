@@ -29,7 +29,7 @@ export function ProfileModal({ isOpen, onClose, onLogout }: ProfileModalProps) {
       const savedAddress = storage.getUserAddress()
 
       setUserEmail(savedEmail || "usuario@basurapp.com")
-      setUserAddress(savedAddress || "Calle Principal #123, Sector Norte")
+      setUserAddress(savedAddress || "Calle Principal #123")
 
       const timer = setTimeout(() => {
         setShowTruckAnimation(true)
@@ -96,60 +96,57 @@ export function ProfileModal({ isOpen, onClose, onLogout }: ProfileModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm sm:max-w-md mx-3 sm:mx-auto">
-        <DialogHeader className="px-1 sm:px-0">
-          <DialogTitle className="flex items-center space-x-2 text-base sm:text-lg">
-            <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+      <DialogContent className="w-[95vw] max-w-[340px] mx-auto p-4">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="flex items-center space-x-2 text-lg">
+            <User className="w-5 h-5 text-primary" />
             <span>Mi Perfil</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6 px-1 sm:px-0">
-          {/* Profile Header */}
-          <div className="text-center space-y-3 sm:space-y-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary to-accent rounded-full mx-auto flex items-center justify-center">
-              <User className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+        <div className="space-y-4">
+          {/* Profile Header - Más compacto */}
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-full mx-auto flex items-center justify-center">
+              <User className="w-7 h-7 text-white" />
             </div>
-
             <div>
-              <h3 className="text-base sm:text-lg font-semibold">Usuario BASURAPP</h3>
-              <Badge variant="secondary" className="mt-1 text-xs">
-                Cliente Premium
-              </Badge>
+              <h3 className="text-base font-semibold">Usuario BASURAPP</h3>
+              <Badge variant="secondary" className="text-xs">Premium</Badge>
             </div>
           </div>
 
-          {/* User Information */}
-          <div className="space-y-3 sm:space-y-4">
-            <div className="flex items-start space-x-3 p-3 bg-muted/30 rounded-lg">
-              <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5" />
+          {/* User Information - Más compacto */}
+          <div className="space-y-3">
+            {/* Email */}
+            <div className="flex items-start space-x-2 p-2 bg-muted/30 rounded-lg">
+              <Mail className="w-4 h-4 text-primary mt-1 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Correo Electrónico</p>
+                <p className="text-xs font-medium mb-1">Email</p>
                 {isEditingEmail ? (
-                  <div className="flex items-center space-x-2 mt-1">
+                  <div className="flex items-center space-x-1">
                     <Input
                       type="email"
                       value={tempEmail}
                       onChange={(e) => setTempEmail(e.target.value)}
-                      className="h-8 text-sm flex-1"
-                      placeholder="nuevo@email.com"
+                      className="h-7 text-xs flex-1"
                     />
-                    <Button size="sm" onClick={saveEmail} className="h-8 w-8 p-0 shrink-0">
+                    <Button size="sm" onClick={saveEmail} className="h-7 w-7 p-0">
                       <Check className="w-3 h-3" />
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={cancelEditingEmail}
-                      className="h-8 w-8 p-0 bg-transparent shrink-0"
+                      className="h-7 w-7 p-0"
                     >
                       <X className="w-3 h-3" />
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-sm text-muted-foreground truncate pr-2">{userEmail}</p>
-                    <Button size="sm" variant="ghost" onClick={startEditingEmail} className="h-6 w-6 p-0 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground truncate pr-1 flex-1">{userEmail}</p>
+                    <Button size="sm" variant="ghost" onClick={startEditingEmail} className="h-6 w-6 p-0">
                       <Edit className="w-3 h-3" />
                     </Button>
                   </div>
@@ -157,34 +154,34 @@ export function ProfileModal({ isOpen, onClose, onLogout }: ProfileModalProps) {
               </div>
             </div>
 
-            <div className="flex items-start space-x-3 p-3 bg-muted/30 rounded-lg">
-              <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-accent mt-0.5" />
+            {/* Address */}
+            <div className="flex items-start space-x-2 p-2 bg-muted/30 rounded-lg">
+              <MapPin className="w-4 h-4 text-accent mt-1 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Dirección Registrada</p>
+                <p className="text-xs font-medium mb-1">Dirección</p>
                 {isEditingAddress ? (
-                  <div className="flex items-center space-x-2 mt-1">
+                  <div className="flex items-center space-x-1">
                     <Input
                       value={tempAddress}
                       onChange={(e) => setTempAddress(e.target.value)}
-                      className="h-8 text-sm flex-1"
-                      placeholder="Nueva dirección..."
+                      className="h-7 text-xs flex-1"
                     />
-                    <Button size="sm" onClick={saveAddress} className="h-8 w-8 p-0 shrink-0">
+                    <Button size="sm" onClick={saveAddress} className="h-7 w-7 p-0">
                       <Check className="w-3 h-3" />
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={cancelEditingAddress}
-                      className="h-8 w-8 p-0 bg-transparent shrink-0"
+                      className="h-7 w-7 p-0"
                     >
                       <X className="w-3 h-3" />
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-sm text-muted-foreground truncate pr-2">{userAddress}</p>
-                    <Button size="sm" variant="ghost" onClick={startEditingAddress} className="h-6 w-6 p-0 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground truncate pr-1 flex-1">{userAddress}</p>
+                    <Button size="sm" variant="ghost" onClick={startEditingAddress} className="h-6 w-6 p-0">
                       <Edit className="w-3 h-3" />
                     </Button>
                   </div>
@@ -192,70 +189,57 @@ export function ProfileModal({ isOpen, onClose, onLogout }: ProfileModalProps) {
               </div>
             </div>
 
-            <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg">
-              <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
+            {/* Service Status */}
+            <div className="flex items-center space-x-2 p-2 bg-muted/30 rounded-lg">
+              <Truck className="w-4 h-4 text-secondary flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium">Servicio Activo</p>
-                <p className="text-sm text-muted-foreground">Recolección programada</p>
+                <p className="text-xs font-medium">Servicio Activo</p>
+                <p className="text-xs text-muted-foreground">Recolección programada</p>
               </div>
             </div>
           </div>
 
-          {/* Animated truck section */}
-          <div className="relative h-20 sm:h-24 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/30 rounded-lg overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center px-2">
-                <p className="text-xs sm:text-sm font-medium text-green-800 dark:text-green-200">
-                  ¡Gracias por usar BASURAPP!
-                </p>
-                <p className="text-xs text-green-600 dark:text-green-400">Cuidando el medio ambiente juntos</p>
+          {/* Animated truck section - Más pequeño */}
+          <div className="relative h-16 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/30 rounded-lg overflow-hidden">
+            <div className="absolute inset-0 flex items-center justify-center px-2">
+              <div className="text-center">
+                <p className="text-xs font-medium text-green-800 dark:text-green-200">¡Gracias por usar BASURAPP!</p>
+                <p className="text-xs text-green-600 dark:text-green-400">Cuidando el ambiente</p>
               </div>
             </div>
 
-            {/* Enhanced animated truck */}
+            {/* Truck animation */}
             <div
               className={`absolute top-1/2 transform -translate-y-1/2 transition-all duration-4000 ease-in-out ${
-                showTruckAnimation ? "left-full -translate-x-full" : "-left-12"
+                showTruckAnimation ? "left-full -translate-x-full" : "-left-10"
               }`}
             >
-              <div className="relative">
-                <Truck className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 animate-bounce" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
-                {/* Exhaust smoke effect */}
-                <div className="absolute -left-2 top-1 w-1 h-1 bg-gray-400 rounded-full animate-ping opacity-60"></div>
-                <div className="absolute -left-3 top-0 w-1 h-1 bg-gray-300 rounded-full animate-ping opacity-40 animation-delay-200"></div>
-              </div>
+              <Truck className="w-6 h-6 text-green-600 animate-bounce" />
             </div>
 
-            {/* Road with lane markings */}
-            <div className="absolute bottom-2 left-0 right-0 h-1 bg-gray-300 dark:bg-gray-600"></div>
-            <div
-              className="absolute bottom-2 left-0 right-0 h-0.5 bg-white dark:bg-gray-400 opacity-60"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, transparent, transparent 10px, currentColor 10px, currentColor 20px)",
-              }}
-            ></div>
+            {/* Road */}
+            <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-gray-300 dark:bg-gray-600"></div>
           </div>
 
+          {/* Action Buttons - Más compactos */}
           <div className="space-y-2">
             <Button
               variant="outline"
-              className="w-full justify-start bg-transparent h-10 sm:h-auto"
+              className="w-full justify-start h-9 text-sm"
               onClick={startEditingAddress}
             >
               <MapPin className="w-4 h-4 mr-2" />
               Cambiar Dirección
             </Button>
 
-            <Button variant="destructive" className="w-full justify-start h-10 sm:h-auto" onClick={handleLogout}>
+            <Button variant="destructive" className="w-full justify-start h-9 text-sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
               Cerrar Sesión
             </Button>
 
             <Button
               variant="outline"
-              className="w-full justify-start bg-transparent h-10 sm:h-auto"
+              className="w-full justify-start h-9 text-sm"
               onClick={handleLogout}
             >
               <Home className="w-4 h-4 mr-2" />
