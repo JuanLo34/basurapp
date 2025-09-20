@@ -1,295 +1,592 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Truck, Navigation, Layers, ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
+import React, { useEffect, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Truck, Navigation, ZoomIn, ZoomOut, MapPin, Clock, AlertCircle, CheckCircle } from "lucide-react";
+import maplibregl from "maplibre-gl";
+import * as turf from "@turf/turf";
 
 interface InteractiveMapProps {
-  userAddress: string
+  userAddress?: string;
 }
 
-const truckRoutes = [
-  { x: 5, y: 20, action: "pickup", duration: 8000 },
-  { x: 15, y: 35, action: "moving", duration: 7500 },
-  { x: 25, y: 15, action: "pickup", duration: 8000 },
-  { x: 40, y: 45, action: "moving", duration: 7800 },
-  { x: 55, y: 25, action: "pickup", duration: 7500 },
-  { x: 70, y: 60, action: "moving", duration: 8000 },
-  { x: 85, y: 50, action: "destination", duration: 8500 }, // Tu ubicación
-  { x: 90, y: 45, action: "leaving", duration: 7000 },
-  { x: 95, y: 40, action: "gone", duration: 7500 },
-]
+// Ruta realista por Bucaramanga
+const DEFAULT_ROUTE: GeoJSON.LineString = {
+  type: "LineString",
+  coordinates: [
+    [-73.1198, 7.1193], // Parque García Rovira
+    [-73.1205, 7.1201], // Calle 35
+    [-73.1215, 7.1208], // Carrera 27
+    [-73.1225, 7.1215], // Tu ubicación (simulada)
+    [-73.1235, 7.1222], // Continuación ruta
+    [-73.1245, 7.1230], // Zona residencial
+    [-73.1255, 7.1238], // Final de ruta
+  ],
+};
 
-export function InteractiveMap({ userAddress }: InteractiveMapProps) {
-  const [currentRouteIndex, setCurrentRouteIndex] = useState(0)
-  const [isMoving, setIsMoving] = useState(true)
-  const [zoomLevel, setZoomLevel] = useState(1)
-  const [mapStyle, setMapStyle] = useState<"default" | "satellite">("default")
-  const [truckStatus, setTruckStatus] = useState("En ruta")
+const USER_LOCATION = [-73.1225, 7.1215]; // Tu ubicación en la ruta
 
-  useEffect(() => {
-    if (!isMoving) return
+export default function InteractiveMap({ userAddress = "Bucaramanga, Santander" }: InteractiveMapProps) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const truckMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const animRef = useRef<number | null>(null);
+  
+  const [isOpen, setIsOpen] = useState(false);
+  const [truckState, setTruckState] = useState<"approaching" | "moving" | "collecting" | "completed">("approaching");
+  const [zoom, setZoom] = useState<number>(15);
+  const [mapReady, setMapReady] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState("5-8 min");
+  const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [atUserLocation, setAtUserLocation] = useState(false);
+  const [collectionComplete, setCollectionComplete] = useState(false);
 
-    const currentRoute = truckRoutes[currentRouteIndex]
-    const timer = setTimeout(() => {
-      switch (currentRoute.action) {
-        case "pickup":
-          setTruckStatus("Recolectando")
-          break
-        case "destination":
-          setTruckStatus("En tu ubicación")
-          break
-        case "leaving":
-          setTruckStatus("Saliendo")
-          break
-        case "gone":
-          setTruckStatus("Completado")
-          break
-        default:
-          setTruckStatus("En ruta")
+  const openMap = () => {
+    setIsOpen(true);
+    setTimeout(() => initializeMap(), 50);
+  };
+
+  const closeMap = () => {
+    setIsOpen(false);
+    cleanupMap();
+  };
+
+  const initializeMap = () => {
+    if (mapRef.current || !mapContainerRef.current) return;
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: '&copy; OpenStreetMap contributors',
+          },
+        },
+        layers: [
+          {
+            id: "osm-tiles",
+            type: "raster",
+            source: "osm",
+          },
+        ],
+        // Estilo Google Maps
+        light: {
+          anchor: "viewport",
+          intensity: 0.15,
+        },
+      },
+      center: DEFAULT_ROUTE.coordinates[0] as [number, number],
+      zoom,
+      pitch: 0,
+      bearing: 0,
+    });
+
+    mapRef.current = map;
+
+    // Controles estilo Google Maps
+    map.addControl(new maplibregl.NavigationControl({ 
+      showCompass: false,
+      visualizePitch: false 
+    }), "bottom-right");
+
+    map.on("load", () => {
+      // Ruta principal
+      if (!map.getSource("route")) {
+        map.addSource("route", {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: DEFAULT_ROUTE,
+          },
+        });
+
+        // Estilo de ruta similar a Google Maps
+        map.addLayer({
+          id: "route-casing",
+          type: "line",
+          source: "route",
+          paint: {
+            "line-color": "#1976D2",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 10, 8, 18, 20],
+            "line-opacity": 0.6,
+          },
+        });
+
+        map.addLayer({
+          id: "route-line",
+          type: "line",
+          source: "route",
+          paint: {
+            "line-color": "#4285F4",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 10, 5, 18, 15],
+            "line-opacity": 1,
+          },
+        });
+
+        // Línea de progreso
+        map.addSource("progress-route", {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: DEFAULT_ROUTE.coordinates.slice(0, 1),
+            },
+          },
+        });
+
+        map.addLayer({
+          id: "progress-line",
+          type: "line",
+          source: "progress-route",
+          paint: {
+            "line-color": "#34A853",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 10, 6, 18, 16],
+            "line-opacity": 1,
+          },
+        });
       }
 
-      setCurrentRouteIndex((prev) => (prev + 1) % truckRoutes.length)
-    }, currentRoute.duration)
+      // Marcador de usuario
+      const userEl = document.createElement("div");
+      userEl.innerHTML = `
+        <div style="
+          width: 20px;
+          height: 20px;
+          background: #4285F4;
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          position: relative;
+        ">
+          <div style="
+            position: absolute;
+            top: -30px;
+            left: -25px;
+            background: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            white-space: nowrap;
+          ">Tu ubicación</div>
+        </div>
+      `;
 
-    return () => clearTimeout(timer)
-  }, [currentRouteIndex, isMoving])
+      const userMarker = new maplibregl.Marker({ 
+        element: userEl, 
+        anchor: "center" 
+      })
+        .setLngLat(USER_LOCATION as [number, number])
+        .addTo(map);
 
-  const currentRoute = truckRoutes[currentRouteIndex]
-  const nextRoute = truckRoutes[(currentRouteIndex + 1) % truckRoutes.length]
+      userMarkerRef.current = userMarker;
 
-  const toggleMovement = () => {
-    setIsMoving(!isMoving)
+      // Camión de basura más realista
+      const truckEl = document.createElement("div");
+      truckEl.style.width = "50px";
+      truckEl.style.height = "30px";
+      truckEl.style.transformOrigin = "center";
+      truckEl.style.transition = "transform 0.5s ease-out";
+      
+      const truckSvg = encodeURIComponent(`
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30'>
+          <defs>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <dropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+            </filter>
+          </defs>
+          <g filter="url(#shadow)">
+            <!-- Cuerpo del camión -->
+            <rect x="4" y="8" width="35" height="14" rx="2" fill="#FF6B35" stroke="#E55A2B" stroke-width="1"/>
+            <!-- Cabina -->
+            <rect x="39" y="10" width="15" height="10" rx="1" fill="#FF6B35" stroke="#E55A2B" stroke-width="1"/>
+            <!-- Ventanas -->
+            <rect x="41" y="11" width="5" height="4" rx="0.5" fill="#87CEEB" opacity="0.8"/>
+            <rect x="47" y="11" width="5" height="4" rx="0.5" fill="#87CEEB" opacity="0.8"/>
+            <!-- Ruedas -->
+            <circle cx="15" cy="24" r="3" fill="#2C3E50" stroke="#34495E" stroke-width="0.5"/>
+            <circle cx="45" cy="24" r="3" fill="#2C3E50" stroke="#34495E" stroke-width="0.5"/>
+            <!-- Detalles -->
+            <rect x="6" y="10" width="30" height="2" fill="#E55A2B"/>
+            <rect x="6" y="16" width="30" height="2" fill="#E55A2B"/>
+          </g>
+        </svg>
+      `);
+      
+      truckEl.style.backgroundImage = `url("data:image/svg+xml,${truckSvg}")`;
+      truckEl.style.backgroundSize = "contain";
+      truckEl.style.backgroundRepeat = "no-repeat";
+      truckEl.style.backgroundPosition = "center";
+
+      const truckMarker = new maplibregl.Marker({ 
+        element: truckEl, 
+        anchor: "center" 
+      })
+        .setLngLat(DEFAULT_ROUTE.coordinates[0] as [number, number])
+        .addTo(map);
+
+      truckMarkerRef.current = truckMarker;
+
+      // Animación realista
+      const line = turf.lineString(DEFAULT_ROUTE.coordinates as any);
+      const lineDistance = turf.length(line, { units: "kilometers" });
+      const truckSpeedKmh = 20;
+      const speedKms = truckSpeedKmh / 3600;
+      const durationSeconds = lineDistance / speedKms;
+      
+      const steps = 200;
+      const samples: turf.Position[] = [];
+      for (let i = 0; i <= steps; i++) {
+        const along = turf.along(line, (i / steps) * lineDistance, { units: "kilometers" });
+        samples.push(along.geometry.coordinates as turf.Position);
+      }
+
+      const bearings: number[] = [];
+      for (let i = 0; i < samples.length - 1; i++) {
+        bearings.push(turf.bearing(turf.point(samples[i]), turf.point(samples[i + 1])));
+      }
+      bearings.push(bearings[bearings.length - 1] || 0);
+
+      // Encontrar índice más cercano a ubicación del usuario
+      const userLocationIndex = samples.findIndex((coord, index) => {
+        const distance = turf.distance(
+          turf.point(coord), 
+          turf.point(USER_LOCATION), 
+          { units: "meters" }
+        );
+        return distance < 50; // 50 metros de tolerancia
+      }) || Math.floor(samples.length * 0.5);
+
+      let startTime = performance.now();
+      let pauseStart = 0;
+      let totalPauseTime = 0;
+      let isAtUser = false;
+      let collectionStarted = false;
+
+      function easeInOutQuad(t: number): number {
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      }
+
+      function animate(now: number) {
+        const elapsed = (now - startTime - totalPauseTime) / 1000;
+        const rawProgress = Math.min(1, elapsed / durationSeconds);
+        const smoothProgress = easeInOutQuad(rawProgress);
+        const idx = Math.floor(smoothProgress * (samples.length - 1));
+
+        setProgress(smoothProgress * 100);
+        
+        // Actualizar línea de progreso
+        const progressCoords = DEFAULT_ROUTE.coordinates.slice(0, 
+          Math.floor(smoothProgress * DEFAULT_ROUTE.coordinates.length) + 1
+        );
+        
+        if (map.getSource("progress-route")) {
+          (map.getSource("progress-route") as maplibregl.GeoJSONSource).setData({
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: progressCoords,
+            },
+          });
+        }
+
+        const coord = samples[idx] as [number, number];
+        truckMarker.setLngLat(coord);
+
+        // Rotación suave del camión
+        const bearing = bearings[idx] || 0;
+        const truckElement = truckMarker.getElement() as HTMLElement;
+        truckElement.style.transform = `rotate(${bearing}deg)`;
+
+        // Velocidad actual simulada
+        const speed = smoothProgress < 1 ? Math.floor(15 + Math.random() * 10) : 0;
+        setCurrentSpeed(speed);
+
+        // Estados del camión
+        if (idx >= userLocationIndex - 5 && idx <= userLocationIndex + 5 && !isAtUser) {
+          setTruckState("collecting");
+          setAtUserLocation(true);
+          isAtUser = true;
+          collectionStarted = true;
+          
+          // Pausa para recolección (5 segundos)
+          if (pauseStart === 0) {
+            pauseStart = now;
+          } else if (now - pauseStart > 5000) {
+            totalPauseTime += 5000;
+            pauseStart = 0;
+            setTruckState("moving");
+            setCollectionComplete(true);
+          } else {
+            // Durante la pausa, no avanzar la animación
+            animRef.current = requestAnimationFrame(animate);
+            return;
+          }
+        } else if (smoothProgress >= 1) {
+          setTruckState("completed");
+          setCurrentSpeed(0);
+        } else if (collectionStarted && isAtUser) {
+          setTruckState("moving");
+        } else {
+          setTruckState("approaching");
+        }
+
+        // Actualizar tiempo estimado
+        const remainingTime = Math.max(0, (durationSeconds - elapsed) / 60);
+        setEstimatedTime(remainingTime > 1 ? `${Math.ceil(remainingTime)} min` : "< 1 min");
+
+        if (smoothProgress < 1) {
+          animRef.current = requestAnimationFrame(animate);
+        }
+      }
+
+      animRef.current = requestAnimationFrame(animate);
+      setMapReady(true);
+
+      // Auto-zoom cuando el camión se acerca
+      function onZoom() {
+        const z = map.getZoom();
+        setZoom(z);
+      }
+
+      map.on("zoom", onZoom);
+
+      const cleanup = () => {
+        if (animRef.current) cancelAnimationFrame(animRef.current);
+        map.off("zoom", onZoom);
+        if (truckMarkerRef.current) truckMarkerRef.current.remove();
+        if (userMarkerRef.current) userMarkerRef.current.remove();
+        if (mapRef.current) {
+          try {
+            mapRef.current.remove();
+          } catch (e) {
+            console.error("Error cleaning up map:", e);
+          }
+        }
+        truckMarkerRef.current = null;
+        userMarkerRef.current = null;
+        mapRef.current = null;
+        setMapReady(false);
+      };
+
+      (initializeMap as any)._cleanup = cleanup;
+    });
+  };
+
+  function cleanupMap() {
+    const fn = (initializeMap as any)._cleanup;
+    if (fn) fn();
   }
 
-  const resetRoute = () => {
-    setCurrentRouteIndex(0)
-    setTruckStatus("En ruta")
-    setZoomLevel(1)
-  }
+  useEffect(() => {
+    return () => {
+      cleanupMap();
+    };
+  }, []);
+
+  const getStateInfo = () => {
+    switch (truckState) {
+      case "approaching":
+        return { 
+          label: "Acercándose", 
+          color: "bg-blue-500", 
+          icon: <Truck className="w-3 h-3" />,
+          variant: "default" as const
+        };
+      case "moving":
+        return { 
+          label: "En ruta", 
+          color: "bg-green-500", 
+          icon: <Navigation className="w-3 h-3" />,
+          variant: "default" as const
+        };
+      case "collecting":
+        return { 
+          label: "Recolectando", 
+          color: "bg-orange-500", 
+          icon: <AlertCircle className="w-3 h-3" />,
+          variant: "destructive" as const
+        };
+      case "completed":
+        return { 
+          label: "Completado", 
+          color: "bg-gray-500", 
+          icon: <CheckCircle className="w-3 h-3" />,
+          variant: "secondary" as const
+        };
+    }
+  };
+
+  const stateInfo = getStateInfo();
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <Card className="h-48 sm:h-64 relative overflow-hidden border-0 shadow-lg">
-        <div
-          className={`absolute inset-0 transition-all duration-500 ${
-            mapStyle === "satellite"
-              ? "bg-gradient-to-br from-green-900 via-green-800 to-green-700"
-              : "bg-gradient-to-br from-green-50 via-white to-green-50 dark:from-green-950/20 dark:via-gray-900 dark:to-green-900/20"
-          }`}
-          style={{ transform: `scale(${zoomLevel})`, transformOrigin: "center" }}
-        >
-          {/* Main highways */}
-          <div className="absolute top-1/2 left-0 right-0 h-3 bg-gray-400 dark:bg-gray-600 transform -translate-y-1/2 shadow-md border-t border-b border-gray-500"></div>
-          <div className="absolute left-1/2 top-0 bottom-0 w-3 bg-gray-400 dark:bg-gray-600 transform -translate-x-1/2 shadow-md border-l border-r border-gray-500"></div>
-
-          {/* Secondary streets with lane markings */}
-          <div className="absolute top-1/4 left-0 right-0 h-2 bg-gray-300 dark:bg-gray-700 shadow-sm">
-            <div
-              className="absolute top-1/2 left-0 right-0 h-0.5 bg-white dark:bg-gray-400 opacity-60 transform -translate-y-1/2"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, transparent, transparent 8px, currentColor 8px, currentColor 12px)",
-              }}
-            ></div>
-          </div>
-          <div className="absolute top-3/4 left-0 right-0 h-2 bg-gray-300 dark:bg-gray-700 shadow-sm">
-            <div
-              className="absolute top-1/2 left-0 right-0 h-0.5 bg-white dark:bg-gray-400 opacity-60 transform -translate-y-1/2"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, transparent, transparent 8px, currentColor 8px, currentColor 12px)",
-              }}
-            ></div>
-          </div>
-          <div className="absolute left-1/4 top-0 bottom-0 w-2 bg-gray-300 dark:bg-gray-700 shadow-sm">
-            <div
-              className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white dark:bg-gray-400 opacity-60 transform -translate-x-1/2"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(0deg, transparent, transparent 8px, currentColor 8px, currentColor 12px)",
-              }}
-            ></div>
-          </div>
-          <div className="absolute left-3/4 top-0 bottom-0 w-2 bg-gray-300 dark:bg-gray-700 shadow-sm">
-            <div
-              className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white dark:bg-gray-400 opacity-60 transform -translate-x-1/2"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(0deg, transparent, transparent 8px, currentColor 8px, currentColor 12px)",
-              }}
-            ></div>
-          </div>
-
-          {/* Buildings with more detail */}
-          <div className="absolute top-6 left-8 w-10 h-16 bg-gray-500 dark:bg-gray-600 rounded-sm shadow-lg">
-            <div className="absolute top-1 left-1 right-1 h-2 bg-gray-600 dark:bg-gray-700 rounded-sm"></div>
-            <div className="grid grid-cols-2 gap-1 p-1 mt-3">
-              <div className="w-2 h-2 bg-yellow-300 rounded-sm opacity-80"></div>
-              <div className="w-2 h-2 bg-yellow-300 rounded-sm opacity-60"></div>
-              <div className="w-2 h-2 bg-yellow-300 rounded-sm opacity-90"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+    <Card className="relative overflow-hidden bg-white shadow-lg border border-gray-200">
+      <div className="flex items-center justify-between gap-4 p-4">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+              <Truck className="w-5 h-5 text-white" />
             </div>
+            {atUserLocation && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white">
+                <CheckCircle className="w-2 h-2 text-white ml-0.5 mt-0.5" />
+              </div>
+            )}
           </div>
-
-          <div className="absolute top-8 left-24 w-8 h-12 bg-gray-400 dark:bg-gray-700 rounded-sm shadow-md">
-            <div className="grid grid-cols-2 gap-0.5 p-0.5 mt-1">
-              <div className="w-1.5 h-1.5 bg-yellow-200 rounded-sm opacity-70"></div>
-              <div className="w-1.5 h-1.5 bg-yellow-200 rounded-sm opacity-50"></div>
+          
+          <div>
+            <div className="font-semibold text-gray-900">Camión de Basura</div>
+            <div className="text-sm text-gray-600 flex items-center gap-2">
+              <MapPin className="w-3 h-3" />
+              {userAddress}
             </div>
-          </div>
-
-          <div className="absolute bottom-8 right-20 w-12 h-18 bg-gray-500 dark:bg-gray-600 rounded-sm shadow-lg">
-            <div className="absolute top-1 left-1 right-1 h-2 bg-gray-600 dark:bg-gray-700 rounded-sm"></div>
-            <div className="grid grid-cols-3 gap-0.5 p-1 mt-3">
-              <div className="w-1.5 h-1.5 bg-yellow-300 rounded-sm opacity-80"></div>
-              <div className="w-1.5 h-1.5 bg-yellow-300 rounded-sm opacity-60"></div>
-              <div className="w-1.5 h-1.5 bg-yellow-300 rounded-sm opacity-90"></div>
-              <div className="w-1.5 h-1.5 bg-gray-400 rounded-sm"></div>
-              <div className="w-1.5 h-1.5 bg-yellow-300 rounded-sm opacity-70"></div>
-              <div className="w-1.5 h-1.5 bg-gray-400 rounded-sm"></div>
+            <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+              <Clock className="w-3 h-3" />
+              ETA: {estimatedTime} • {currentSpeed} km/h
             </div>
-          </div>
-
-          <div className="absolute top-12 right-12 w-6 h-8 bg-gray-400 dark:bg-gray-700 rounded-sm shadow-md">
-            <div className="w-2 h-2 bg-yellow-200 rounded-sm opacity-60 m-1"></div>
-          </div>
-
-          {/* Parks and green areas */}
-          <div className="absolute bottom-6 left-12 w-16 h-12 bg-green-200 dark:bg-green-800 rounded-lg opacity-70 shadow-sm">
-            <div className="absolute top-2 left-2 w-2 h-6 bg-green-600 dark:bg-green-400 rounded-full opacity-80"></div>
-            <div className="absolute top-1 right-3 w-2 h-7 bg-green-600 dark:bg-green-400 rounded-full opacity-70"></div>
-            <div className="absolute bottom-2 left-6 w-2 h-4 bg-green-600 dark:bg-green-400 rounded-full opacity-90"></div>
-          </div>
-          <div className="absolute top-4 right-8 w-12 h-8 bg-green-200 dark:bg-green-800 rounded-lg opacity-60 shadow-sm">
-            <div className="absolute top-1 left-2 w-1.5 h-4 bg-green-600 dark:bg-green-400 rounded-full opacity-80"></div>
-            <div className="absolute top-0 right-2 w-1.5 h-5 bg-green-600 dark:bg-green-400 rounded-full opacity-70"></div>
-          </div>
-
-          {/* Traffic lights */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-3 bg-gray-800 rounded-full shadow-sm">
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-red-500 rounded-full opacity-80"></div>
-            <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-yellow-500 rounded-full opacity-40"></div>
-            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-green-500 rounded-full opacity-90 animate-pulse"></div>
           </div>
         </div>
 
-        {/* Tu ubicación */}
-        <div className="absolute right-8 sm:right-12 top-1/2 transform -translate-y-1/2">
-          <div className="relative">
-            <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 rounded-full border-2 sm:border-4 border-white shadow-lg animate-pulse-slow relative z-10">
-              <div className="absolute -top-1 sm:-top-2 -left-1 sm:-left-2 w-7 h-7 sm:w-10 sm:h-10 bg-blue-500/20 rounded-full animate-ping"></div>
-              <div className="absolute -top-2 sm:-top-4 -left-2 sm:-left-4 w-9 h-9 sm:w-14 sm:h-14 bg-blue-500/10 rounded-full animate-ping animation-delay-1000"></div>
-            </div>
-            <div className="absolute -top-6 sm:-top-8 -left-8 sm:-left-2 text-xs bg-white dark:bg-gray-800 px-1 sm:px-2 py-0.5 sm:py-1 rounded shadow-lg border max-w-20 sm:max-w-none">
-              <div className="text-center">
-                <div className="font-semibold text-blue-600 text-xs">Tu ubicación</div>
-                <div className="w-2 h-2 bg-white dark:bg-gray-800 rotate-45 absolute -bottom-1 left-1/2 transform -translate-x-1/2 border-r border-b"></div>
+        <div className="flex flex-col items-end gap-2">
+          <Badge variant={stateInfo.variant} className="flex items-center gap-1">
+            {stateInfo.icon}
+            {stateInfo.label}
+          </Badge>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => (isOpen ? closeMap() : openMap())}
+            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+          >
+            <Navigation className="w-4 h-4 mr-1" />
+            {isOpen ? "Cerrar" : "Ver mapa"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Barra de progreso */}
+      <div className="px-4 pb-4">
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div 
+            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          Progreso: {Math.round(progress)}%
+          {collectionComplete && (
+            <span className="text-green-600 ml-2 font-medium">
+              ✓ Basura recolectada
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Vista previa del mapa */}
+      <div className="px-4 pb-4">
+        <div
+          className="w-full h-48 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => (isOpen ? closeMap() : openMap())}
+        >
+          {!isOpen && (
+            <div 
+              className="w-full h-full bg-cover bg-center relative"
+              style={{
+                backgroundImage: `url('https://tile.openstreetmap.org/15/8069/12637.png')`,
+                filter: 'sepia(0.1) contrast(1.1)'
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+              <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium">
+                Toca para ver el mapa interactivo
               </div>
             </div>
-          </div>
-        </div>
-
-        <div
-          className="absolute transition-all duration-1000 ease-in-out z-20"
-          style={{
-            left: `${currentRoute.x}%`,
-            top: `${currentRoute.y}%`,
-            transform: `translate(-50%, -50%) ${currentRoute.x > (truckRoutes[Math.max(currentRouteIndex - 1, 0)]?.x || 0) ? "scaleX(-1)" : "scaleX(1)"}`,
-          }}
-        >
-          <div className="relative">
-            <div
-              className={`bg-white dark:bg-gray-800 rounded-lg p-0.5 sm:p-1 shadow-lg border ${currentRoute.action === "pickup" ? "animate-bounce" : ""}`}
-            >
-              <Truck
-                className={`w-5 h-5 sm:w-6 sm:h-6 -scale-x-100 ${currentRoute.action === "destination" ? "text-blue-600" : "text-green-600"}`}
-            />
-            </div>
-            <div
-              className={`absolute -top-1 sm:-top-2 -right-0.5 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse border border-white sm:border-2 ${
-                currentRoute.action === "destination"
-                  ? "bg-blue-500"
-                  : currentRoute.action === "pickup"
-                    ? "bg-orange-500"
-                    : "bg-green-500"
-              }`}
-            ></div>
-
-            {/* Exhaust smoke when moving */}
-            {currentRoute.action === "moving" && (
-              <>
-                <div className="absolute -left-2 top-1 w-1 h-1 bg-gray-400 rounded-full animate-ping opacity-60"></div>
-                <div className="absolute -left-3 top-0 w-1 h-1 bg-gray-300 rounded-full animate-ping opacity-40 animation-delay-200"></div>
-              </>
-            )}
-
-            <div className="absolute -top-8 sm:-top-12 -left-6 sm:-left-8 text-xs bg-gray-800 text-white px-1 sm:px-2 py-0.5 sm:py-1 rounded shadow-lg opacity-90 transition-opacity max-w-24 sm:max-w-none">
-
-              <div className="w-2 h-2 bg-gray-800 rotate-45 absolute -bottom-1 left-1/2 transform -translate-x-1/2"></div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Controles */}
-      <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex flex-col space-y-1 sm:space-y-2 z-30">
-        
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 sm:h-8 sm:w-8 p-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg border"
-          onClick={() => setMapStyle(mapStyle === "default" ? "satellite" : "default")}
-        >
-          <Layers className="w-3 h-3 sm:w-4 sm:h-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 sm:h-8 sm:w-8 p-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg border"
-          onClick={resetRoute}
-        >
-          <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" />
-        </Button>
-      </div>
-
-      {/* Barra de estado */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-t p-2">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs space-y-1 sm:space-y-0">
-          <div className="flex items-center space-x-2">
-            <Badge
-              variant="secondary"
-              className={`text-xs ${
-                currentRoute.action === "destination"
-                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                  : currentRoute.action === "pickup"
-                    ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
-                    : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-              }`}
-            >
-              <Navigation className="w-3 h-3 mr-1" />
-              {truckStatus}
-            </Badge>
-            <span className="text-muted-foreground">
-              {currentRoute.action === "destination"
-                ? "Llegó!"
-                : currentRoute.action === "gone"
-                  ? "Completado"
-                  : `ETA: ${Math.max(15 - currentRouteIndex * 2, 2)} min`}
-            </span>
-          </div>
-          <button
-            onClick={toggleMovement}
-            className="text-muted-foreground hover:text-foreground transition-colors text-left sm:text-center"
-          >
-            {isMoving ? "⏸️ Pausar" : "▶️ Reanudar"}
-          </button>
+          )}
         </div>
       </div>
-    </div>
-  )
+
+      {/* Mapa a pantalla completa */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+          {/* Header estilo Google Maps */}
+          <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                <Truck className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900">Seguimiento en Tiempo Real</div>
+                <div className="text-sm text-gray-600">{stateInfo.label} • {currentSpeed} km/h</div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => mapRef.current?.zoomIn()}
+                className="w-10 h-10 p-0"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => mapRef.current?.zoomOut()}
+                className="w-10 h-10 p-0"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={closeMap}
+                className="border-gray-300"
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+
+          {/* Mapa */}
+          <div className="flex-1 relative">
+            <div ref={mapContainerRef} className="absolute inset-0" />
+            
+            {/* Info flotante */}
+            <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 max-w-xs">
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-2 h-2 rounded-full ${stateInfo.color}`} />
+                <span className="font-medium text-sm">{stateInfo.label}</span>
+              </div>
+              <div className="text-xs text-gray-600">
+                ETA: {estimatedTime} | Velocidad: {currentSpeed} km/h
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Progreso de ruta: {Math.round(progress)}%
+              </div>
+              {atUserLocation && (
+                <div className="text-xs text-green-600 font-medium mt-1">
+                  ✓ En tu ubicación
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
 }
