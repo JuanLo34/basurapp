@@ -6,13 +6,13 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Layers, RotateCcw } from "lucide-react"
 
-// Coordenadas ejemplo Bogotá
+// Coordenadas para Colegio José Elías Puyana Sede A, Floridablanca, Santander
 const truckRoutes: [number, number][] = [
-  [-74.0836, 4.6097], // inicio
-  [-74.08, 4.62],
-  [-74.07, 4.625],
-  [-74.065, 4.63],
-  [-74.06, 4.635],    // destino
+  [-73.0858, 7.0621], // Inicio en Floridablanca centro
+  [-73.0870, 7.0635], // Acercándose al colegio
+  [-73.0880, 7.0645], // Por la Calle 4
+  [-73.0885, 7.0650], // Llegando al sector
+  [-73.0890, 7.0655], // Colegio José Elías Puyana Sede A - Calle 4 No. 11-79
 ]
 
 export function InteractiveMap() {
@@ -30,9 +30,9 @@ export function InteractiveMap() {
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style:
-        mapStyle === "streets"
-          ? "https://demotiles.maplibre.org/style.json"
-          : "https://api.maptiler.com/maps/hybrid/style.json?key=XZJESfRiXjvzKz6iV9Sh",
+        mapStyle === "streets" 
+          ? "https://api.maptiler.com/maps/hybrid/style.json?key=XZJESfRiXjvzKz6iV9Sh"
+          : "https://demotiles.maplibre.org/style.json",
       center: truckRoutes[0],
       zoom: 13,
     })
