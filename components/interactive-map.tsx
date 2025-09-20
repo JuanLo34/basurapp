@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Truck, Navigation, ZoomIn, ZoomOut, MapPin, Clock, AlertCircle, CheckCircle } from "lucide-react";
 import maplibregl from "maplibre-gl";
-import * as turf from "@turf/turf";
 
 interface InteractiveMapProps {
   userAddress?: string;
@@ -240,35 +239,88 @@ export default function InteractiveMap({ userAddress = "Bucaramanga, Santander" 
 
       truckMarkerRef.current = truckMarker;
 
-      // Animación realista
-      const line = turf.lineString(DEFAULT_ROUTE.coordinates as any);
-      const lineDistance = turf.length(line, { units: "kilometers" });
+      // Funciones de cálculo geográfico
+      function calculateDistance(coord1: [number, number], coord2: [number, number]): number {
+        const R = 6371; // Radio de la Tierra en km
+        const dLat = (coord2[1] - coord1[1]) * Math.PI / 180;
+        const dLng = (coord1[0] - coord2[0]) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(coord1[1] * Math.PI / 180) * Math.cos(coord2[1] * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      }
+
+      function calculateBearing(coord1: [number, number], coord2: [number, number]): number {
+        const dLng = (coord2[0] - coord1[0]) * Math.PI / 180;
+        const lat1 = coord1[1] * Math.PI / 180;
+        const lat2 = coord2[1] * Math.PI / 180;
+        const y = Math.sin(dLng) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+      }
+
+      function interpolateCoordinate(coord1: [number, number], coord2: [number, number], t: number): [number, number] {
+        return [
+          coord1[0] + (coord2[0] - coord1[0]) * t,
+          coord1[1] + (coord2[1] - coord1[1]) * t
+        ];
+      }
+
+      // Calcular distancia total de la ruta
+      const routeCoords = DEFAULT_ROUTE.coordinates as [number, number][];
+      let totalDistance = 0;
+      for (let i = 0; i < routeCoords.length - 1; i++) {
+        totalDistance += calculateDistance(routeCoords[i], routeCoords[i + 1]);
+      }
+
+      // Configuración de animación
       const truckSpeedKmh = 20;
       const speedKms = truckSpeedKmh / 3600;
-      const durationSeconds = lineDistance / speedKms;
+      const durationSeconds = totalDistance / speedKms;
       
+      // Crear muestras de la ruta para animación suave
       const steps = 200;
-      const samples: turf.Position[] = [];
-      for (let i = 0; i <= steps; i++) {
-        const along = turf.along(line, (i / steps) * lineDistance, { units: "kilometers" });
-        samples.push(along.geometry.coordinates as turf.Position);
-      }
-
+      const samples: [number, number][] = [];
       const bearings: number[] = [];
-      for (let i = 0; i < samples.length - 1; i++) {
-        bearings.push(turf.bearing(turf.point(samples[i]), turf.point(samples[i + 1])));
+
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const totalProgress = t * (routeCoords.length - 1);
+        const segmentIndex = Math.floor(totalProgress);
+        const segmentProgress = totalProgress - segmentIndex;
+        
+        if (segmentIndex >= routeCoords.length - 1) {
+          samples.push(routeCoords[routeCoords.length - 1]);
+          bearings.push(bearings[bearings.length - 1] || 0);
+        } else {
+          const interpolated = interpolateCoordinate(
+            routeCoords[segmentIndex],
+            routeCoords[segmentIndex + 1],
+            segmentProgress
+          );
+          samples.push(interpolated);
+          
+          // Calcular bearing entre segmentos
+          const bearing = calculateBearing(
+            routeCoords[segmentIndex],
+            routeCoords[segmentIndex + 1]
+          );
+          bearings.push(bearing);
+        }
       }
-      bearings.push(bearings[bearings.length - 1] || 0);
 
       // Encontrar índice más cercano a ubicación del usuario
-      const userLocationIndex = samples.findIndex((coord, index) => {
-        const distance = turf.distance(
-          turf.point(coord), 
-          turf.point(USER_LOCATION), 
-          { units: "meters" }
-        );
-        return distance < 50; // 50 metros de tolerancia
-      }) || Math.floor(samples.length * 0.5);
+      let userLocationIndex = Math.floor(samples.length * 0.5); // Por defecto en el medio
+      let minDistance = Infinity;
+      
+      samples.forEach((coord, index) => {
+        const distance = calculateDistance(coord, USER_LOCATION as [number, number]) * 1000; // convertir a metros
+        if (distance < minDistance) {
+          minDistance = distance;
+          userLocationIndex = index;
+        }
+      });
 
       let startTime = performance.now();
       let pauseStart = 0;
