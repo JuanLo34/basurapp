@@ -32,7 +32,7 @@ export function InteractiveMap() {
       style:
         mapStyle === "streets"
           ? "https://demotiles.maplibre.org/style.json"
-          : "https://api.maptiler.com/maps/hybrid/style.json?key=YOUR_API_KEY",
+          : "https://api.maptiler.com/maps/hybrid/style.json?key=XZJESfRiXjvzKz6iV9Sh",
       center: truckRoutes[0],
       zoom: 13,
     })
