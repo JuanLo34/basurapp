@@ -1,28 +1,25 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import maplibregl, { LngLatLike, Marker } from "maplibre-gl"
-import "maplibre-gl/dist/maplibre-gl.css"
+import maplibregl, { Marker } from "maplibre-gl"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Layers, RotateCcw } from "lucide-react"
 
-interface InteractiveMapProps {
-  userAddress: string
-}
-
+// Coordenadas ejemplo Bogotá
 const truckRoutes: [number, number][] = [
-  [-74.0836, 4.6097], // Bogotá
+  [-74.0836, 4.6097], // inicio
   [-74.08, 4.62],
-  [-74.06, 4.63],
-  [-74.05, 4.635],
-  [-74.04, 4.64],     // destino
+  [-74.07, 4.625],
+  [-74.065, 4.63],
+  [-74.06, 4.635],    // destino
 ]
 
-export function InteractiveMap({ userAddress }: InteractiveMapProps) {
+export function InteractiveMap() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markerRef = useRef<Marker | null>(null)
+
   const [currentIndex, setCurrentIndex] = useState(0)
   const [mapStyle, setMapStyle] = useState<"streets" | "satellite">("streets")
   const [isMoving, setIsMoving] = useState(true)
@@ -36,22 +33,19 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
         mapStyle === "streets"
           ? "https://demotiles.maplibre.org/style.json"
           : "https://api.maptiler.com/maps/hybrid/style.json?key=YOUR_API_KEY",
-      center: truckRoutes[0] as LngLatLike,
+      center: truckRoutes[0],
       zoom: 13,
     })
 
     mapRef.current = map
 
-    const marker = new maplibregl.Marker({
-      color: "green",
-      element: (() => {
-        const el = document.createElement("div")
-        el.innerHTML = "🚚"
-        el.style.fontSize = "24px"
-        return el
-      })(),
-    })
-      .setLngLat(truckRoutes[0] as LngLatLike)
+    // 🚚 Camión (emoji como icono)
+    const el = document.createElement("div")
+    el.innerHTML = "🚚"
+    el.style.fontSize = "28px"
+
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat(truckRoutes[0])
       .addTo(map)
 
     markerRef.current = marker
@@ -69,10 +63,10 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
       const nextIndex = currentIndex + 1
       setCurrentIndex(nextIndex)
 
-      const nextPos = truckRoutes[nextIndex] as LngLatLike
+      const nextPos = truckRoutes[nextIndex]
       markerRef.current?.setLngLat(nextPos)
       mapRef.current?.flyTo({ center: nextPos, zoom: 15, speed: 0.8 })
-    }, 3000)
+    }, 2500)
 
     return () => clearTimeout(timer)
   }, [currentIndex, isMoving])
@@ -85,8 +79,8 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
   }
 
   return (
-    <div className="relative space-y-3">
-      <Card className="h-80 sm:h-96 relative overflow-hidden border-0 shadow-lg">
+    <div className="relative">
+      <Card className="h-96 relative overflow-hidden border-0 shadow-lg">
         <div ref={mapContainer} className="absolute inset-0" />
       </Card>
 
@@ -95,7 +89,7 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border"
+          className="bg-white rounded-lg shadow-lg border"
           onClick={() => setMapStyle(mapStyle === "streets" ? "satellite" : "streets")}
         >
           <Layers className="w-4 h-4" />
@@ -103,7 +97,7 @@ export function InteractiveMap({ userAddress }: InteractiveMapProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border"
+          className="bg-white rounded-lg shadow-lg border"
           onClick={resetRoute}
         >
           <RotateCcw className="w-4 h-4" />
