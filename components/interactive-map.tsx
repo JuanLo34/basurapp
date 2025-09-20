@@ -39,9 +39,9 @@ export function InteractiveMap() {
 
     mapRef.current = map
 
-    // 🚚 Camión (emoji como icono)
+    // 🚚 Camión (emoji como icono) (en mantenimiento)
     const el = document.createElement("div")
-    el.innerHTML = "🚚"
+    el.innerHTML = ""
     el.style.fontSize = "28px"
 
     const marker = new maplibregl.Marker({ element: el })
