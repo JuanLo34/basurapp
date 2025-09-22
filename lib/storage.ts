@@ -11,10 +11,6 @@ interface StorageData {
 const STORAGE_KEY = "basurapp_data"
 
 export const storage = {
-
-  
-
-
   // Obtener datos del localStorage
   getData: (): Partial<StorageData> => {
     if (typeof window === "undefined") return {}
@@ -80,23 +76,13 @@ export const storage = {
     return data.notifications || false
   },
 
-    saveUserAddress: (address: string) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("userAddress", address)
-    }
+  saveUserAddress: (userAddress: string) => {
+    storage.setData({ userAddress })
   },
 
-  getUserAddress: (): string | null => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("userAddress")
-    }
-    return null
-  },
-
-  clearUserAddress: () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("userAddress")
-    }
+  getUserAddress: (): string => {
+    const data = storage.getData()
+    return data.userAddress || ""
   },
 
   saveUserData: (email: string, name?: string) => {
@@ -121,7 +107,4 @@ export const storage = {
     const data = storage.getData()
     return data.notificationsList || []
   },
-
-  
 }
-
