@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,23 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [geocodingResult, setGeocodingResult] = useState<GeocodingResult | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userAddress, setUserAddress] = useState<string>("")
+  const [userCoordinates, setUserCoordinates] = useState<[number, number] | undefined>()
+
+  useEffect(() => {
+    const userEmail = storage.getUserEmail()
+    const savedAddress = storage.getUserAddress()
+
+    if (userEmail) {
+      setIsLoggedIn(true)
+    }
+
+    if (savedAddress) {
+      setUserAddress(savedAddress)
+      setAddress(savedAddress)
+    }
+  }, [])
 
   const locationSuggestions = [
     {
@@ -49,6 +66,8 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
 
         if (result.isValid) {
           setIsValid(true)
+          setUserAddress(result.formattedAddress)
+          setUserCoordinates(result.coordinates)
           onAddressChange(result.formattedAddress, result.coordinates)
           storage.saveUserAddress(result.formattedAddress)
           setIsConfirmed(true)
@@ -92,6 +111,8 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
   const handleLocationSuggestionSelect = (location: (typeof locationSuggestions)[0]) => {
     setAddress(location.address)
     setIsValid(true)
+    setUserAddress(`${location.name}, ${location.address}`)
+    setUserCoordinates(location.coordinates)
     setGeocodingResult({
       isValid: true,
       formattedAddress: `${location.name}, ${location.address}`,
@@ -103,8 +124,33 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
     setTimeout(() => setIsConfirmed(false), 3000)
   }
 
+  const handleLogout = () => {
+    setIsLoggedIn(false)
+    storage.clearData()
+    setUserAddress("")
+    setUserCoordinates(undefined)
+    setAddress("")
+    setIsValid(null)
+    setIsConfirmed(false)
+  }
+
   return (
     <div className="space-y-4">
+      {isLoggedIn && (
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-2xl font-bold">Validación de Direcciones</h1>
+            {storage.getUserName() && <p className="text-muted-foreground">Bienvenido, {storage.getUserName()}</p>}
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="address" className="text-sm font-medium flex items-center space-x-2">
