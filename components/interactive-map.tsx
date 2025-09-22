@@ -1,28 +1,33 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import maplibregl, { Marker } from "maplibre-gl"
+import maplibregl from "maplibre-gl"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Layers, RotateCcw } from "lucide-react"
+import { Layers, RotateCcw, MapPin, X } from "lucide-react"
 
-// Coordenadas para Colegio José Elías Puyana Sede A, Floridablanca, Santander
+interface InteractiveMapProps {
+  center?: [number, number]
+  showUserLocation?: boolean
+  userAddress?: string
+}
+
 const truckRoutes: [number, number][] = [
   [-73.0858, 7.0621], // Inicio en Floridablanca centro
-  [-73.0870, 7.0635], // Acercándose al colegio
-  [-73.0880, 7.0645], // Por la Calle 4
-  [-73.0885, 7.0650], // Llegando al sector
-  [-73.0890, 7.0655], // Colegio José Elías Puyana Sede A - Calle 4 No. 11-79
+  [-73.087, 7.0635], // Acercándose al colegio
+  [-73.088, 7.0645], // Por la Calle 4
+  [-73.0885, 7.065], // Llegando al sector
+  [-73.0839186559978, 7.064693786161123], // Colegio José Elías Puyana Sede A - coordenadas exactas
 ]
 
-export function InteractiveMap() {
+export function InteractiveMap({ center, showUserLocation = false, userAddress }: InteractiveMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const markerRef = useRef<Marker | null>(null)
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [mapStyle, setMapStyle] = useState<"streets" | "satellite">("streets")
   const [isMoving, setIsMoving] = useState(true)
+  const [showLocationPopup, setShowLocationPopup] = useState(false)
 
   useEffect(() => {
     if (!mapContainer.current) return
@@ -30,61 +35,81 @@ export function InteractiveMap() {
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style:
-        mapStyle === "streets" 
+        mapStyle === "streets"
           ? "https://api.maptiler.com/maps/hybrid/style.json?key=XZJESfRiXjvzKz6iV9Sh"
           : "https://demotiles.maplibre.org/style.json",
-      center: truckRoutes[0],
-      zoom: 13,
+      center: center || [-73.0858, 7.0621], // Default to Floridablanca center
+      zoom: center ? 15 : 13,
+      attributionControl: false,
     })
 
     mapRef.current = map
 
-    // 🚚 Camión (emoji como icono) (en mantenimiento)
-    const el = document.createElement("div")
-    el.innerHTML = ""
-    el.style.fontSize = "28px"
-
-    const marker = new maplibregl.Marker({ element: el })
-      .setLngLat(truckRoutes[0])
-      .addTo(map)
-
-    markerRef.current = marker
-
     return () => {
       map.remove()
     }
-  }, [mapStyle])
-
-  useEffect(() => {
-    if (!isMoving) return
-    if (currentIndex >= truckRoutes.length - 1) return
-
-    const timer = setTimeout(() => {
-      const nextIndex = currentIndex + 1
-      setCurrentIndex(nextIndex)
-
-      const nextPos = truckRoutes[nextIndex]
-      markerRef.current?.setLngLat(nextPos)
-      mapRef.current?.flyTo({ center: nextPos, zoom: 15, speed: 0.8 })
-    }, 2500)
-
-    return () => clearTimeout(timer)
-  }, [currentIndex, isMoving])
+  }, [mapStyle, center, showUserLocation, userAddress])
 
   const resetRoute = () => {
-    setCurrentIndex(0)
-    markerRef.current?.setLngLat(truckRoutes[0])
-    mapRef.current?.flyTo({ center: truckRoutes[0], zoom: 13 })
-    setIsMoving(true)
+    if (center && showUserLocation && mapRef.current) {
+      mapRef.current.flyTo({ center, zoom: 15 })
+    } else {
+      mapRef.current?.flyTo({ center: [-73.0858, 7.0621], zoom: 13 }) // Reset to Floridablanca center instead of Bucaramanga
+    }
+  }
+
+  const centerOnUser = () => {
+    if (center && mapRef.current) {
+      mapRef.current.flyTo({ center, zoom: 18, speed: 1.2 })
+      setShowLocationPopup(true)
+    }
   }
 
   return (
     <div className="relative">
       <Card className="h-96 relative overflow-hidden border-0 shadow-lg">
         <div ref={mapContainer} className="absolute inset-0" />
+
+        {showUserLocation && userAddress && (
+          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border p-3 max-w-xs z-30">
+            <div className="flex items-center space-x-2 mb-1">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="font-medium text-sm">Dirección validada</span>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">{userAddress}</p>
+          </div>
+        )}
+
+        {showLocationPopup && center && (
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-40">
+            <div className="bg-white rounded-lg shadow-xl border p-6 max-w-sm mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-lg">Tu ubicación</h3>
+                <Button variant="ghost" size="sm" onClick={() => setShowLocationPopup(false)} className="h-8 w-8 p-0">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-medium">Coordenadas:</span>
+                </div>
+                <div className="bg-gray-50 rounded p-3 font-mono text-sm">
+                  <div>Latitud: {center[1].toFixed(6)}</div>
+                  <div>Longitud: {center[0].toFixed(6)}</div>
+                </div>
+                {userAddress && (
+                  <div className="mt-3">
+                    <span className="text-sm font-medium">Dirección:</span>
+                    <p className="text-sm text-gray-600 mt-1">{userAddress}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Controles */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2 z-30">
         <Button
           variant="ghost"
@@ -94,14 +119,14 @@ export function InteractiveMap() {
         >
           <Layers className="w-4 h-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="bg-white rounded-lg shadow-lg border"
-          onClick={resetRoute}
-        >
+        <Button variant="ghost" size="sm" className="bg-white rounded-lg shadow-lg border" onClick={resetRoute}>
           <RotateCcw className="w-4 h-4" />
         </Button>
+        {showUserLocation && (
+          <Button variant="ghost" size="sm" className="bg-white rounded-lg shadow-lg border" onClick={centerOnUser}>
+            <MapPin className="w-4 h-4" />
+          </Button>
+        )}
       </div>
     </div>
   )
