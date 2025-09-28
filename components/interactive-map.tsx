@@ -1,91 +1,266 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import maplibregl, { Marker } from "maplibre-gl"
+import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Layers, RotateCcw } from "lucide-react"
 
-// Coordenadas para Colegio José Elías Puyana Sede A, Floridablanca, Santander
-const truckRoutes: [number, number][] = [
-  [-73.0858, 7.0621], // Inicio en Floridablanca centro
-  [-73.0870, 7.0635], // Acercándose al colegio
-  [-73.0880, 7.0645], // Por la Calle 4
-  [-73.0885, 7.0650], // Llegando al sector
-  [-73.0890, 7.0655], // Colegio José Elías Puyana Sede A - Calle 4 No. 11-79
-]
+const DESTINATION_ROUTES = {
+  // Cra. 33 #196-103, Floridablanca, Santander - Longer route
+  "7.094759796940575,-73.10674773737284": [
+    [7.092, -73.104], // Punto de inicio más lejano
+    [7.0925, -73.1045],
+    [7.093, -73.105],
+    [7.0935, -73.1055],
+    [7.094, -73.106],
+    [7.0942, -73.1062],
+    [7.0944, -73.1064],
+    [7.0946, -73.1066],
+    [7.0947, -73.1067],
+    [7.094759796940575, -73.10674773737284], // Destino final
+  ],
+  // Cra. 44 #148B43-Floridablanca - Longer route
+  "7.076822648358956,-73.09388075855374": [
+    [7.074, -73.091],
+    [7.0745, -73.0915],
+    [7.075, -73.092],
+    [7.0755, -73.0925],
+    [7.076, -73.093],
+    [7.0762, -73.0932],
+    [7.0764, -73.0934],
+    [7.0766, -73.0936],
+    [7.0767, -73.0937],
+    [7.076822648358956, -73.09388075855374],
+  ],
+  // Cra 15b #3-39 - Longer route
+  "7.06568278238497,-73.08014450521267": [
+    [7.063, -73.077],
+    [7.0635, -73.0775],
+    [7.064, -73.078],
+    [7.0645, -73.0785],
+    [7.065, -73.0795],
+    [7.0652, -73.0797],
+    [7.0654, -73.0799],
+    [7.0655, -73.08],
+    [7.0656, -73.0801],
+    [7.06568278238497, -73.08014450521267],
+  ],
+}
 
-export function InteractiveMap() {
-  const mapContainer = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<maplibregl.Map | null>(null)
-  const markerRef = useRef<Marker | null>(null)
+interface InteractiveMapProps {
+  destination?: [number, number]
+  onRouteComplete?: () => void
+}
 
+export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [mapStyle, setMapStyle] = useState<"streets" | "satellite">("streets")
-  const [isMoving, setIsMoving] = useState(true)
+  const [isMoving, setIsMoving] = useState(false)
+  const [currentRoute, setCurrentRoute] = useState<[number, number][]>([])
+  const [isRouteComplete, setIsRouteComplete] = useState(false)
+  const [currentPosition, setCurrentPosition] = useState<[number, number]>([7.0621, -73.0858])
+  const [showTruck, setShowTruck] = useState(false)
+  const [zoom, setZoom] = useState(17) // Reduced zoom for better tile alignment
+  const [interpolatedPosition, setInterpolatedPosition] = useState<[number, number]>([7.0621, -73.0858])
+  const animationRef = useRef<number>()
 
   useEffect(() => {
-    if (!mapContainer.current) return
+    const handleHideTruck = () => {
+      setShowTruck(false)
+    }
 
-    const map = new maplibregl.Map({
-      container: mapContainer.current,
-      style:
-        mapStyle === "streets" 
-          ? "https://api.maptiler.com/maps/hybrid/style.json?key=XZJESfRiXjvzKz6iV9Sh"
-          : "https://demotiles.maplibre.org/style.json",
-      center: truckRoutes[0],
-      zoom: 13,
-    })
+    window.addEventListener("hideTruck", handleHideTruck)
+    return () => {
+      window.removeEventListener("hideTruck", handleHideTruck)
+    }
+  }, [])
 
-    mapRef.current = map
+  useEffect(() => {
+    if (!destination) return
 
-    // 🚚 Camión (emoji como icono) (en mantenimiento)
-    const el = document.createElement("div")
-    el.innerHTML = ""
-    el.style.fontSize = "28px"
+    const destinationKey = `${destination[0]},${destination[1]}`
+    const route = DESTINATION_ROUTES[destinationKey as keyof typeof DESTINATION_ROUTES]
 
-    const marker = new maplibregl.Marker({ element: el })
-      .setLngLat(truckRoutes[0])
-      .addTo(map)
+    if (!route) return
 
-    markerRef.current = marker
+    setCurrentRoute(route)
+    setCurrentIndex(0)
+    setIsMoving(true)
+    setIsRouteComplete(false)
+    setCurrentPosition(route[0])
+    setInterpolatedPosition(route[0]) // Initialize interpolated position
+    setShowTruck(true)
+    setZoom(17)
+  }, [destination])
+
+  useEffect(() => {
+    if (!isMoving || currentRoute.length === 0) return
+
+    if (currentIndex >= currentRoute.length - 1) {
+      const finalDestination = currentRoute[currentRoute.length - 1]
+      setCurrentPosition(finalDestination)
+      setInterpolatedPosition(finalDestination)
+      setIsMoving(false)
+      setIsRouteComplete(true)
+      if (onRouteComplete) {
+        onRouteComplete()
+      }
+      return
+    }
+
+    const startPos = currentRoute[currentIndex]
+    const endPos = currentRoute[currentIndex + 1]
+    const duration = 2500 // 2.5 seconds for smoother, more fluid movement
+    const startTime = Date.now()
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+
+      const easeProgress = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2
+
+      const lat = startPos[0] + (endPos[0] - startPos[0]) * easeProgress
+      const lng = startPos[1] + (endPos[1] - startPos[1]) * easeProgress
+
+      setInterpolatedPosition([lat, lng])
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate)
+      } else {
+        setCurrentIndex(currentIndex + 1)
+        setCurrentPosition(endPos)
+      }
+    }
+
+    animationRef.current = requestAnimationFrame(animate)
 
     return () => {
-      map.remove()
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
     }
-  }, [mapStyle])
-
-  useEffect(() => {
-    if (!isMoving) return
-    if (currentIndex >= truckRoutes.length - 1) return
-
-    const timer = setTimeout(() => {
-      const nextIndex = currentIndex + 1
-      setCurrentIndex(nextIndex)
-
-      const nextPos = truckRoutes[nextIndex]
-      markerRef.current?.setLngLat(nextPos)
-      mapRef.current?.flyTo({ center: nextPos, zoom: 15, speed: 0.8 })
-    }, 2500)
-
-    return () => clearTimeout(timer)
-  }, [currentIndex, isMoving])
+  }, [currentIndex, isMoving, currentRoute, onRouteComplete])
 
   const resetRoute = () => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+    }
     setCurrentIndex(0)
-    markerRef.current?.setLngLat(truckRoutes[0])
-    mapRef.current?.flyTo({ center: truckRoutes[0], zoom: 13 })
-    setIsMoving(true)
+    setIsMoving(false)
+    setIsRouteComplete(false)
+    setCurrentRoute([])
+    setCurrentPosition([7.0621, -73.0858])
+    setInterpolatedPosition([7.0621, -73.0858])
+    setShowTruck(false)
+    setZoom(17)
   }
+
+  const tileUrl =
+    mapStyle === "streets"
+      ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+
+  const getTileCoords = (lat: number, lng: number, zoom: number) => {
+    const x = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom))
+    const y = Math.floor(
+      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) *
+        Math.pow(2, zoom),
+    )
+    return { x, y }
+  }
+
+  const getPixelOffset = (lat: number, lng: number, zoom: number) => {
+    const scale = Math.pow(2, zoom)
+    const worldX = ((lng + 180) / 360) * scale
+    const worldY =
+      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * scale
+
+    const tileX = Math.floor(worldX)
+    const tileY = Math.floor(worldY)
+
+    const offsetX = (worldX - tileX) * 256
+    const offsetY = (worldY - tileY) * 256
+
+    return { offsetX, offsetY, tileX, tileY }
+  }
+
+  const { offsetX, offsetY } = getPixelOffset(interpolatedPosition[0], interpolatedPosition[1], zoom)
+  const { x: tileX, y: tileY } = getTileCoords(interpolatedPosition[0], interpolatedPosition[1], zoom)
 
   return (
     <div className="relative">
       <Card className="h-96 relative overflow-hidden border-0 shadow-lg">
-        <div ref={mapContainer} className="absolute inset-0" />
+        <div
+          className="absolute grid grid-cols-3 grid-rows-3"
+          style={{
+            width: "768px", // 3 * 256px tiles
+            height: "768px", // 3 * 256px tiles
+            left: `calc(50% - 384px + ${128 - offsetX}px)`, // Center and adjust for offset
+            top: `calc(50% - 384px + ${128 - offsetY}px)`, // Center and adjust for offset
+          }}
+        >
+          {Array.from({ length: 9 }).map((_, i) => {
+            const row = Math.floor(i / 3) - 1 // -1, 0, 1
+            const col = (i % 3) - 1 // -1, 0, 1
+            const currentTileUrl = tileUrl
+              .replace("{z}", zoom.toString())
+              .replace("{x}", (tileX + col).toString())
+              .replace("{y}", (tileY + row).toString())
+
+            return (
+              <div key={i} className="w-64 h-64">
+                <img
+                  src={currentTileUrl || "/placeholder.svg"}
+                  alt={`Map tile ${i}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const fallbackUrl = `https://tile.openstreetmap.org/${zoom}/${tileX + col}/${tileY + row}.png`
+                    ;(e.target as HTMLImageElement).src = fallbackUrl
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+
+        {showTruck && (
+          <div
+            className={`absolute z-30 transition-all duration-300 ${isMoving ? "animate-pulse" : ""}`}
+            style={{
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.8))",
+            }}
+          >
+            <div className="text-2xl relative">
+              🚚
+              {isMoving && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isMoving && (
+          <div className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium z-40 shadow-lg">
+            🚚 Camión en ruta... ({currentIndex + 1}/{currentRoute.length}) -{" "}
+            {Math.ceil((currentRoute.length - currentIndex - 1) * 2.5)} seg restantes
+          </div>
+        )}
+
+        {isRouteComplete && showTruck && (
+          <div className="absolute top-4 left-4 bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium z-40 shadow-lg animate-bounce">
+            ✅ Camión llegó al destino
+          </div>
+        )}
+
+        <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs z-40">
+          Zoom: {zoom} | Pos: {interpolatedPosition[0].toFixed(6)}, {interpolatedPosition[1].toFixed(6)}
+        </div>
       </Card>
 
-      {/* Controles */}
-      <div className="absolute top-4 right-4 flex flex-col space-y-2 z-30">
+      <div className="absolute top-4 right-4 flex flex-col space-y-2 z-40">
         <Button
           variant="ghost"
           size="sm"
@@ -94,13 +269,24 @@ export function InteractiveMap() {
         >
           <Layers className="w-4 h-4" />
         </Button>
+        <Button variant="ghost" size="sm" className="bg-white rounded-lg shadow-lg border" onClick={resetRoute}>
+          <RotateCcw className="w-4 h-4" />
+        </Button>
         <Button
           variant="ghost"
           size="sm"
           className="bg-white rounded-lg shadow-lg border"
-          onClick={resetRoute}
+          onClick={() => setZoom(zoom > 15 ? zoom - 1 : 15)}
         >
-          <RotateCcw className="w-4 h-4" />
+          -
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="bg-white rounded-lg shadow-lg border"
+          onClick={() => setZoom(zoom < 20 ? zoom + 1 : 20)}
+        >
+          +
         </Button>
       </div>
     </div>

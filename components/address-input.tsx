@@ -7,30 +7,69 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Check, Search, Navigation, Home } from "lucide-react"
+import { MapPin, Check, Search, Navigation, Home, AlertTriangle } from "lucide-react"
 import { storage } from "@/lib/storage"
 
 interface AddressInputProps {
-  onAddressChange: (address: string) => void
+  onAddressChange: (address: string, coordinates?: [number, number]) => void
 }
+
+const VALID_ADDRESSES = [
+  {
+    address: "Cra. 33 #196-103, Floridablanca, Santander",
+    coordinates: [7.094759796940575, -73.10674773737284] as [number, number],
+  },
+  {
+    address: "Cra. 44 #148B43-Floridablanca",
+    coordinates: [7.076822648358956, -73.09388075855374] as [number, number],
+  },
+  {
+    address: "Cra 15b #3-39",
+    coordinates: [7.06568278238497, -73.08014450521267] as [number, number],
+  },
+]
 
 export function AddressInput({ onAddressChange }: AddressInputProps) {
   const [address, setAddress] = useState("")
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [validationResult, setValidationResult] = useState<"valid" | "invalid" | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (address.trim()) {
       setIsLoading(true)
+      setValidationResult(null)
 
       setTimeout(() => {
-        onAddressChange(address)
-        storage.saveUserAddress(address)
-        setIsConfirmed(true)
+        const validAddress = VALID_ADDRESSES.find(
+          (valid) =>
+            valid.address.toLowerCase().includes(address.toLowerCase().trim()) ||
+            address.toLowerCase().trim().includes(valid.address.toLowerCase()),
+        )
+
+        if (validAddress) {
+          // Address is valid
+          setValidationResult("valid")
+          onAddressChange(validAddress.address, validAddress.coordinates)
+          storage.saveUserAddress(validAddress.address)
+          setIsConfirmed(true)
+          setAddress(validAddress.address) // Set the exact valid address
+        } else {
+          // Address is invalid
+          setValidationResult("invalid")
+          setIsConfirmed(false)
+        }
+
         setIsLoading(false)
 
-        setTimeout(() => setIsConfirmed(false), 3000)
+        // Reset validation result after 5 seconds
+        setTimeout(() => {
+          setValidationResult(null)
+          if (validationResult === "invalid") {
+            setIsConfirmed(false)
+          }
+        }, 5000)
       }, 1000)
     }
   }
@@ -38,6 +77,10 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setAddress(value)
+    if (validationResult) {
+      setValidationResult(null)
+      setIsConfirmed(false)
+    }
   }
 
   return (
@@ -74,7 +117,9 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
           className={`w-full h-12 font-semibold transition-all duration-500 transform hover:scale-[1.02] ${
             isConfirmed
               ? "bg-green-500 hover:bg-green-600 animate-pulse"
-              : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
+              : validationResult === "invalid"
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
           }`}
           disabled={!address.trim() || isLoading}
         >
@@ -88,6 +133,11 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
               <Check className="w-5 h-5 animate-bounce" />
               <span>¡Dirección Confirmada!</span>
             </div>
+          ) : validationResult === "invalid" ? (
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5" />
+              <span>Dirección No Válida</span>
+            </div>
           ) : (
             <div className="flex items-center space-x-2">
               <MapPin className="w-5 h-5" />
@@ -97,7 +147,19 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
         </Button>
       </form>
 
-      {address && (
+      {validationResult === "invalid" && (
+        <div className="p-4 rounded-lg border bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/20 dark:to-red-900/30 border-red-200 dark:border-red-800">
+          <div className="flex items-center space-x-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <p className="text-sm font-medium text-red-800 dark:text-red-300">Dirección no válida</p>
+          </div>
+          <p className="text-sm text-red-700 dark:text-red-400">
+            Esta dirección no está en nuestra zona de cobertura. Por favor, verifica e intenta con una dirección válida.
+          </p>
+        </div>
+      )}
+
+      {address && isConfirmed && (
         <div
           className={`p-4 rounded-lg border transition-all duration-300 ${
             isConfirmed
@@ -145,11 +207,11 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
       )}
 
       <div className="p-3 bg-accent/5 rounded-lg border border-accent/20">
-        <p className="text-xs text-accent font-medium mb-1">💡 Consejos para una mejor ubicación:</p>
+        <p className="text-xs text-accent font-medium mb-1">📍 Direcciones disponibles:</p>
         <ul className="text-xs text-muted-foreground space-y-1">
-          <li>• Incluye número de casa o apartamento</li>
-          <li>• Menciona puntos de referencia cercanos</li>
-          <li>• Especifica el barrio o sector</li>
+          <li>• Cra. 33 #196-103, Floridablanca, Santander</li>
+          <li>• Cra. 44 #148B43-Floridablanca</li>
+          <li>• Cra 15b #3-39</li>
         </ul>
       </div>
     </div>
