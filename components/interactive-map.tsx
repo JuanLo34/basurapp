@@ -6,44 +6,50 @@ import { Button } from "@/components/ui/button"
 import { Layers, RotateCcw } from "lucide-react"
 
 const DESTINATION_ROUTES = {
-  // Cra. 33 #196-103, Floridablanca, Santander - Longer route
+  // Cra. 33 #196-103, Floridablanca, Santander - Following main roads
   "7.094759796940575,-73.10674773737284": [
-    [7.092, -73.104], // Punto de inicio más lejano
-    [7.0925, -73.1045],
-    [7.093, -73.105],
-    [7.0935, -73.1055],
-    [7.094, -73.106],
-    [7.0942, -73.1062],
-    [7.0944, -73.1064],
-    [7.0946, -73.1066],
-    [7.0947, -73.1067],
-    [7.094759796940575, -73.10674773737284], // Destino final
+    [7.089, -73.102], // Starting point on main avenue
+    [7.0895, -73.1025], // Following Carrera 33
+    [7.09, -73.103], // Continue on main road
+    [7.0905, -73.1035], // Turn following street pattern
+    [7.091, -73.104], // Main intersection
+    [7.0915, -73.1045], // Continue on Carrera 33
+    [7.092, -73.105], // Following the main road
+    [7.0925, -73.1055], // Approaching destination area
+    [7.093, -73.106], // Turn into residential street
+    [7.0935, -73.1062], // Following local street
+    [7.094, -73.1065], // Almost at destination
+    [7.0945, -73.1067], // Final approach
+    [7.094759796940575, -73.10674773737284], // Final destination
   ],
-  // Cra. 44 #148B43-Floridablanca - Longer route
+  // Cra. 44 #148B43-Floridablanca - Following road network
   "7.076822648358956,-73.09388075855374": [
-    [7.074, -73.091],
-    [7.0745, -73.0915],
-    [7.075, -73.092],
-    [7.0755, -73.0925],
-    [7.076, -73.093],
-    [7.0762, -73.0932],
-    [7.0764, -73.0934],
-    [7.0766, -73.0936],
-    [7.0767, -73.0937],
-    [7.076822648358956, -73.09388075855374],
+    [7.072, -73.089], // Starting on main avenue
+    [7.0725, -73.0895], // Following Carrera 44
+    [7.073, -73.09], // Continue on main road
+    [7.0735, -73.0905], // Main intersection
+    [7.074, -73.091], // Continue straight
+    [7.0745, -73.0915], // Following the avenue
+    [7.075, -73.092], // Turn following street grid
+    [7.0755, -73.0925], // Residential area approach
+    [7.076, -73.093], // Local street
+    [7.0765, -73.0935], // Final approach on street
+    [7.076822648358956, -73.09388075855374], // Destination
   ],
-  // Cra 15b #3-39 - Longer route
+  // Cra 15b #3-39 - Following street grid pattern
   "7.06568278238497,-73.08014450521267": [
-    [7.063, -73.077],
-    [7.0635, -73.0775],
-    [7.064, -73.078],
-    [7.0645, -73.0785],
-    [7.065, -73.0795],
-    [7.0652, -73.0797],
-    [7.0654, -73.0799],
-    [7.0655, -73.08],
-    [7.0656, -73.0801],
-    [7.06568278238497, -73.08014450521267],
+    [7.061, -73.075], // Starting on main road
+    [7.0615, -73.0755], // Following Carrera 15
+    [7.062, -73.076], // Continue on avenue
+    [7.0625, -73.0765], // Main intersection
+    [7.063, -73.077], // Turn following grid
+    [7.0635, -73.0775], // Continue on street
+    [7.064, -73.078], // Following local road
+    [7.0645, -73.0785], // Residential approach
+    [7.065, -73.079], // Local street
+    [7.0655, -73.0795], // Almost there
+    [7.0657, -73.08], // Final street
+    [7.06568278238497, -73.08014450521267], // Final destination
   ],
 }
 

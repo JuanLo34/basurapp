@@ -21,9 +21,21 @@ export function Dashboard({ onLogout }: DashboardProps) {
   const [showProfile, setShowProfile] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [currentDestination, setCurrentDestination] = useState<[number, number] | undefined>()
 
   const handleLogout = () => {
     onLogout()
+  }
+
+  const handleAddressChange = (address: string, coordinates?: [number, number]) => {
+    setUserAddress(address) // Keep existing functionality
+    if (coordinates) {
+      setCurrentDestination(coordinates) // Enable truck tracking
+    }
+  }
+
+  const handleRouteComplete = () => {
+    console.log("Route completed!")
   }
 
   return (
@@ -114,7 +126,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
               <CardDescription className="text-sm">Ingresa tu dirección para personalizar el servicio</CardDescription>
             </CardHeader>
             <CardContent className="relative z-10 px-4 sm:px-6 pb-4 sm:pb-6">
-              <AddressInput onAddressChange={setUserAddress} />
+              <AddressInput onAddressChange={handleAddressChange} />
             </CardContent>
           </Card>
 
@@ -131,7 +143,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
               <CardDescription className="text-sm">Seguimiento en tiempo real de los camiones</CardDescription>
             </CardHeader>
             <CardContent className="relative z-10 px-4 sm:px-6 pb-4 sm:pb-6">
-              <InteractiveMap userAddress={userAddress} />
+              <InteractiveMap destination={currentDestination} onRouteComplete={handleRouteComplete} />
             </CardContent>
           </Card>
 
