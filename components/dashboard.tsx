@@ -8,9 +8,10 @@ import { TodayAgenda } from "@/components/today-agenda"
 import { NotificationCenter } from "@/components/notification-center"
 import { ProfileModal } from "@/components/profile-modal"
 import { CalendarModal } from "@/components/calendar-modal"
-import { Trash2, LogOut, User, Menu } from "lucide-react"
+import { LogOut, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import Image from "next/image"
 
 interface DashboardProps {
   onLogout: () => void
@@ -43,8 +44,15 @@ export function Dashboard({ onLogout }: DashboardProps) {
       <header className="bg-card/80 backdrop-blur-sm border-b border-border/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-xl flex items-center justify-center animate-pulse">
-              <Trash2 className="w-4 h-4 sm:w-6 sm:h-6 text-primary-foreground" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-primary/10 rounded-xl flex items-center justify-center relative overflow-hidden">
+              <Image
+                src="../public/logo-basurapp.jpeg"
+                alt="BASURAPP Logo"
+                width={40}
+                height={40}
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+                priority
+              />
             </div>
             <div>
               <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Layers, RotateCcw } from "lucide-react"
@@ -58,6 +58,50 @@ interface InteractiveMapProps {
   onRouteComplete?: () => void
 }
 
+const MapTile = ({ src, alt, onError }: { src: string; alt: string; onError: (e: any) => void }) => {
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  const handleLoad = useCallback(() => {
+    setIsLoaded(true)
+  }, [])
+
+  const handleError = useCallback(
+    (e: any) => {
+      setHasError(true)
+      onError(e)
+    },
+    [onError],
+  )
+
+  return (
+    <div className="w-64 h-64 relative overflow-hidden bg-muted/20">
+      <img
+        ref={imgRef}
+        src={src || "/placeholder.svg"}
+        alt={alt}
+        className={`w-full h-full object-cover transition-opacity duration-200 will-change-auto ${
+          isLoaded && !hasError ? "opacity-100" : "opacity-0"
+        }`}
+        onLoad={handleLoad}
+        onError={handleError}
+        loading="lazy"
+        decoding="async"
+        style={{
+          imageRendering: "auto",
+          backfaceVisibility: "hidden",
+        }}
+      />
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-muted/40 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [mapStyle, setMapStyle] = useState<"streets" | "satellite">("streets")
@@ -66,9 +110,63 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
   const [isRouteComplete, setIsRouteComplete] = useState(false)
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([7.0621, -73.0858])
   const [showTruck, setShowTruck] = useState(false)
-  const [zoom, setZoom] = useState(17) // Reduced zoom for better tile alignment
+  const [zoom, setZoom] = useState(17)
   const [interpolatedPosition, setInterpolatedPosition] = useState<[number, number]>([7.0621, -73.0858])
   const animationRef = useRef<number>()
+  const tileCache = useRef<Map<string, HTMLImageElement>>(new Map())
+
+  const tileUrl = useMemo(() => {
+    return mapStyle === "streets"
+      ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+  }, [mapStyle])
+
+  const getTileCoords = useCallback((lat: number, lng: number, zoom: number) => {
+    const x = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom))
+    const y = Math.floor(
+      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) *
+        Math.pow(2, zoom),
+    )
+    return { x, y }
+  }, [])
+
+  const getPixelOffset = useCallback((lat: number, lng: number, zoom: number) => {
+    const scale = Math.pow(2, zoom)
+    const worldX = ((lng + 180) / 360) * scale
+    const worldY =
+      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * scale
+
+    const tileX = Math.floor(worldX)
+    const tileY = Math.floor(worldY)
+
+    const offsetX = (worldX - tileX) * 256
+    const offsetY = (worldY - tileY) * 256
+
+    return { offsetX, offsetY, tileX, tileY }
+  }, [])
+
+  const { offsetX, offsetY, tileX, tileY } = useMemo(
+    () => getPixelOffset(interpolatedPosition[0], interpolatedPosition[1], zoom),
+    [interpolatedPosition, zoom, getPixelOffset],
+  )
+
+  const tileGrid = useMemo(() => {
+    return Array.from({ length: 9 }).map((_, i) => {
+      const row = Math.floor(i / 3) - 1 // -1, 0, 1
+      const col = (i % 3) - 1 // -1, 0, 1
+      const currentTileUrl = tileUrl
+        .replace("{z}", zoom.toString())
+        .replace("{x}", (tileX + col).toString())
+        .replace("{y}", (tileY + row).toString())
+
+      return {
+        key: `${tileX + col}-${tileY + row}-${zoom}-${mapStyle}`,
+        url: currentTileUrl,
+        fallbackUrl: `https://tile.openstreetmap.org/${zoom}/${tileX + col}/${tileY + row}.png`,
+        alt: `Map tile ${i}`,
+      }
+    })
+  }, [tileUrl, zoom, tileX, tileY, mapStyle])
 
   useEffect(() => {
     const handleHideTruck = () => {
@@ -94,7 +192,7 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
     setIsMoving(true)
     setIsRouteComplete(false)
     setCurrentPosition(route[0])
-    setInterpolatedPosition(route[0]) // Initialize interpolated position
+    setInterpolatedPosition(route[0])
     setShowTruck(true)
     setZoom(17)
   }, [destination])
@@ -116,14 +214,14 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
 
     const startPos = currentRoute[currentIndex]
     const endPos = currentRoute[currentIndex + 1]
-    const duration = 2500 // 2.5 seconds for smoother, more fluid movement
+    const duration = 2500
     const startTime = Date.now()
 
     const animate = () => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
 
-      const easeProgress = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2
+      const easeProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2
 
       const lat = startPos[0] + (endPos[0] - startPos[0]) * easeProgress
       const lng = startPos[1] + (endPos[1] - startPos[1]) * easeProgress
@@ -147,7 +245,7 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
     }
   }, [currentIndex, isMoving, currentRoute, onRouteComplete])
 
-  const resetRoute = () => {
+  const resetRoute = useCallback(() => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current)
     }
@@ -159,87 +257,53 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
     setInterpolatedPosition([7.0621, -73.0858])
     setShowTruck(false)
     setZoom(17)
-  }
+  }, [])
 
-  const tileUrl =
-    mapStyle === "streets"
-      ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-
-  const getTileCoords = (lat: number, lng: number, zoom: number) => {
-    const x = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom))
-    const y = Math.floor(
-      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) *
-        Math.pow(2, zoom),
-    )
-    return { x, y }
-  }
-
-  const getPixelOffset = (lat: number, lng: number, zoom: number) => {
-    const scale = Math.pow(2, zoom)
-    const worldX = ((lng + 180) / 360) * scale
-    const worldY =
-      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * scale
-
-    const tileX = Math.floor(worldX)
-    const tileY = Math.floor(worldY)
-
-    const offsetX = (worldX - tileX) * 256
-    const offsetY = (worldY - tileY) * 256
-
-    return { offsetX, offsetY, tileX, tileY }
-  }
-
-  const { offsetX, offsetY } = getPixelOffset(interpolatedPosition[0], interpolatedPosition[1], zoom)
-  const { x: tileX, y: tileY } = getTileCoords(interpolatedPosition[0], interpolatedPosition[1], zoom)
+  const handleTileError = useCallback((e: any, fallbackUrl: string) => {
+    ;(e.target as HTMLImageElement).src = fallbackUrl
+  }, [])
 
   return (
     <div className="relative">
-      <Card className="h-96 relative overflow-hidden border-0 shadow-lg">
+      <Card className="h-96 relative overflow-hidden border-0 shadow-lg bg-card">
         <div
-          className="absolute grid grid-cols-3 grid-rows-3"
+          className="absolute will-change-transform"
           style={{
-            width: "768px", // 3 * 256px tiles
-            height: "768px", // 3 * 256px tiles
-            left: `calc(50% - 384px + ${128 - offsetX}px)`, // Center and adjust for offset
-            top: `calc(50% - 384px + ${128 - offsetY}px)`, // Center and adjust for offset
+            width: "768px",
+            height: "768px",
+            left: `calc(50% - 384px + ${128 - offsetX}px)`,
+            top: `calc(50% - 384px + ${128 - offsetY}px)`,
+            transform: "translate3d(0, 0, 0)", // Force hardware acceleration
+            backfaceVisibility: "hidden", // Prevent flickering
+            WebkitBackfaceVisibility: "hidden", // Safari support
+            perspective: "1000px", // Better 3D rendering
           }}
         >
-          {Array.from({ length: 9 }).map((_, i) => {
-            const row = Math.floor(i / 3) - 1 // -1, 0, 1
-            const col = (i % 3) - 1 // -1, 0, 1
-            const currentTileUrl = tileUrl
-              .replace("{z}", zoom.toString())
-              .replace("{x}", (tileX + col).toString())
-              .replace("{y}", (tileY + row).toString())
-
-            return (
-              <div key={i} className="w-64 h-64">
-                <img
-                  src={currentTileUrl || "/placeholder.svg"}
-                  alt={`Map tile ${i}`}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const fallbackUrl = `https://tile.openstreetmap.org/${zoom}/${tileX + col}/${tileY + row}.png`
-                    ;(e.target as HTMLImageElement).src = fallbackUrl
-                  }}
-                />
-              </div>
-            )
-          })}
+          <div className="grid grid-cols-3 grid-rows-3 w-full h-full">
+            {tileGrid.map((tile) => (
+              <MapTile
+                key={tile.key}
+                src={tile.url}
+                alt={tile.alt}
+                onError={(e) => handleTileError(e, tile.fallbackUrl)}
+              />
+            ))}
+          </div>
         </div>
 
         {showTruck && (
           <div
-            className={`absolute z-30 transition-all duration-300 ${isMoving ? "animate-pulse" : ""}`}
+            className="absolute z-30 will-change-transform"
             style={{
               left: "50%",
               top: "50%",
-              transform: "translate(-50%, -50%)",
+              transform: "translate3d(-50%, -50%, 0)",
               filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.8))",
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
             }}
           >
-            <div className="text-2xl relative">
+            <div className={`text-2xl relative transition-transform duration-300 ${isMoving ? "animate-bounce" : ""}`}>
               🚚
               {isMoving && (
                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
@@ -249,19 +313,19 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
         )}
 
         {isMoving && (
-          <div className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium z-40 shadow-lg">
+          <div className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium z-40 shadow-lg backdrop-blur-sm">
             🚚 Camión en ruta... ({currentIndex + 1}/{currentRoute.length}) -{" "}
             {Math.ceil((currentRoute.length - currentIndex - 1) * 2.5)} seg restantes
           </div>
         )}
 
         {isRouteComplete && showTruck && (
-          <div className="absolute top-4 left-4 bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium z-40 shadow-lg animate-bounce">
+          <div className="absolute top-4 left-4 bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium z-40 shadow-lg animate-bounce backdrop-blur-sm">
             ✅ Camión llegó al destino
           </div>
         )}
 
-        <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs z-40">
+        <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-xs z-40 backdrop-blur-sm">
           Zoom: {zoom} | Pos: {interpolatedPosition[0].toFixed(6)}, {interpolatedPosition[1].toFixed(6)}
         </div>
       </Card>
@@ -270,18 +334,23 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
         <Button
           variant="ghost"
           size="sm"
-          className="bg-white rounded-lg shadow-lg border"
+          className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border hover:bg-white/95 transition-all duration-200"
           onClick={() => setMapStyle(mapStyle === "streets" ? "satellite" : "streets")}
         >
           <Layers className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="bg-white rounded-lg shadow-lg border" onClick={resetRoute}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border hover:bg-white/95 transition-all duration-200"
+          onClick={resetRoute}
+        >
           <RotateCcw className="w-4 h-4" />
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          className="bg-white rounded-lg shadow-lg border"
+          className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border hover:bg-white/95 transition-all duration-200"
           onClick={() => setZoom(zoom > 15 ? zoom - 1 : 15)}
         >
           -
@@ -289,7 +358,7 @@ export function InteractiveMap({ destination, onRouteComplete }: InteractiveMapP
         <Button
           variant="ghost"
           size="sm"
-          className="bg-white rounded-lg shadow-lg border"
+          className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border hover:bg-white/95 transition-all duration-200"
           onClick={() => setZoom(zoom < 20 ? zoom + 1 : 20)}
         >
           +

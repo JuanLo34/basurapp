@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Trash2, Leaf, Recycle } from "lucide-react"
+import { Leaf, Recycle } from "lucide-react"
 import { storage } from "@/lib/storage"
+import Image from "next/image"
 
 interface LoginFormProps {
   onLogin: () => void
@@ -49,15 +50,19 @@ export function LoginForm({ onLogin }: LoginFormProps) {
         <div className="absolute top-20 sm:top-40 right-10 sm:right-20 animate-float" style={{ animationDelay: "1s" }}>
           <Recycle className="w-8 h-8 sm:w-12 sm:h-12 text-secondary/40" />
         </div>
-        <div className="absolute bottom-20 sm:bottom-32 left-1/4 animate-float" style={{ animationDelay: "2s" }}>
-          <Trash2 className="w-6 h-6 sm:w-10 sm:h-10 text-primary/30" />
-        </div>
       </div>
 
       <Card className="w-full max-w-sm sm:max-w-md shadow-2xl border-0 bg-card/95 backdrop-blur-sm">
         <CardHeader className="text-center space-y-3 sm:space-y-4 px-4 sm:px-6 py-4 sm:py-6">
-          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center animate-pulse-green">
-            <Trash2 className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
+          <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 bg-primary/10 rounded-2xl flex items-center justify-center relative overflow-hidden">
+            <Image
+              src="../public/logo-basurapp.jpeg"
+              alt="BASURAPP Logo"
+              width={64}
+              height={64}
+              className="w-16 h-16 sm:w-20 sm:h-20 object-contain"
+              priority
+            />
           </div>
           <div>
             <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
