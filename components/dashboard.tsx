@@ -46,7 +46,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
           <div className="flex items-center space-x-2 sm:space-x-3">
             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-primary/10 rounded-xl flex items-center justify-center relative overflow-hidden">
               <Image
-                src="../public/logo-basurapp.jpeg"
+                src="../public/logo-basurapp.png"
                 alt="BASURAPP Logo"
                 width={40}
                 height={40}
