@@ -56,7 +56,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
         <CardHeader className="text-center space-y-3 sm:space-y-4 px-4 sm:px-6 py-4 sm:py-6">
           <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 bg-primary/10 rounded-2xl flex items-center justify-center relative overflow-hidden">
             <Image
-              src="../public/logo-basurapp.png"
+              src="/logo-basurapp.png"
               alt="BASURAPP Logo"
               width={64}
               height={64}
