@@ -27,6 +27,10 @@ const VALID_ADDRESSES = [
     address: "Cra 15b #3-39",
     coordinates: [7.06568278238497, -73.08014450521267] as [number, number],
   },
+  {
+    address: "Colegio Técnico Industrial José Elías Puyana",
+    coordinates: [7.0647020463691135,-73.08392003248365] as [number, number],
+  }
 ]
 
 export function AddressInput({ onAddressChange }: AddressInputProps) {
@@ -209,9 +213,10 @@ export function AddressInput({ onAddressChange }: AddressInputProps) {
       <div className="p-3 bg-accent/5 rounded-lg border border-accent/20">
         <p className="text-xs text-accent font-medium mb-1">📍 Direcciones disponibles:</p>
         <ul className="text-xs text-muted-foreground space-y-1">
-          <li>• Cra. 33 #196-103, Floridablanca, Santander</li>
-          <li>• Cra. 44 #148B43-Floridablanca</li>
-          <li>• Cra 15b #3-39</li>
+          <li>Cra. 33 #196-103, Floridablanca, Santander</li>
+          <li>Cra. 44 #148B43-Floridablanca</li>
+          <li>Cra 15b #3-39</li>
+          <li>Colegio Técnico Industrial José Elías Puyana</li>
         </ul>
       </div>
     </div>

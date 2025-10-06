@@ -51,6 +51,21 @@ const DESTINATION_ROUTES = {
     [7.0657, -73.08], // Final street
     [7.06568278238497, -73.08014450521267], // Final destination
   ],
+  // Colegio tecnico industrial jose elias puyana SEDE A
+  "7.0647020463691135,-73.08392003248365": [
+    [7.06, -73.079], // Starting on main avenue
+    [7.0605, -73.0795], // Following main road
+    [7.061, -73.08], // Continue on avenue
+    [7.0615, -73.0805], // Main intersection
+    [7.062, -73.081], // Turn following street pattern
+    [7.0625, -73.0815], // Continue on local road
+    [7.063, -73.082], // Following the street
+    [7.0635, -73.0825], // Residential area
+    [7.064, -73.083], // Local street approach
+    [7.0642, -73.0835], // Almost at destination
+    [7.0645, -73.0838], // Final approach
+    [7.0647020463691135, -73.08392003248365], // Final destination
+  ],
 }
 
 interface InteractiveMapProps {
